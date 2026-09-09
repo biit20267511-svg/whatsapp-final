@@ -1,0 +1,50 @@
+{
+  "summary": "waautoma verification-only regression pass (iteration 2). Ran existing pytest suite (12/12 passed) + new regression file test_regression_waautoma_flows.py (14 tests, 14/14 pass after test-side selector fixes; no source code modified). Frontend browser checks: owner login → /dashboard with Pizza Palace + connected text; menu shows all 6 seeded items with correct prices; simulator AI produced correct itemized reply (2x Zinger 1300, 1x Coke 120, delivery 150, total 1570 — arithmetically correct); confirm placed order with order_number 1001; orders/customers/analytics reflect the order; owner→/admin redirected to /dashboard; admin login shows Super Admin panel with Total Restaurants 13, MRR PKR 55,000; negative login shows 'Invalid email or password'; Baileys gateway /health returns {ok:true}.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/simulator/message",
+        "issue": "AI order summary does not include an explicit 'Subtotal' line (shows line items + 'delivery fee' + 'Total' only). Review request expected 'subtotal 1420 + delivery 150'. Math is correct (2*650+120=1420 subtotal, +150 delivery = 1570 total) but the subtotal line is absent from the customer-facing reply. Minor UX/spec deviation only."
+      },
+      {
+        "endpoint": "/api/whatsapp/config",
+        "issue": "For demo-pizza-palace the config returns provider='baileys', status='disconnected' (connected_number is 'Simulator' string only). Review request expected 'simulator connected'. This is state left over from earlier admin tests that switched providers — the seed on startup does NOT re-normalize the demo tenant back to simulator/connected. Not a code bug per se, but seed is not idempotent for whatsapp_config."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/whatsapp (Pizza Palace)",
+        "issues": ["Active provider card shows 'Baileys' selected with 'disconnected' badge for the demo tenant instead of the seeded Simulator. If seed is meant to keep demo on simulator-connected, the UI reflects the underlying seed drift noted above."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_regression_waautoma_flows.py",
+    "/app/test_reports/pytest/pytest_existing.xml",
+    "/app/test_reports/pytest/pytest_regression.xml"
+  ],
+  "action_items": [
+    "(Optional, spec) Update AI response template in services/ai_service.py to include an explicit 'Subtotal: PKR X' line before delivery fee so the pricing summary matches the acceptance criteria phrasing.",
+    "(Optional, seed idempotency) In startup seed, if the demo restaurant already exists but its whatsapp_config.provider != 'simulator', reset it back to simulator+connected so demo state is deterministic across test runs."
+  ],
+  "critical_code_review_comments": [
+    "server.py seed is not fully idempotent for whatsapp_config on the demo tenant — provider stays whatever a prior admin test left it as.",
+    "routers/orders.py: PATCH /orders/{id}/status uses Title Case enum ('Confirmed', 'Preparing', ...). Frontend must match exactly; consider case-insensitive normalization to reduce integration friction.",
+    "routers/analytics.py: only /analytics/summary exists — README/tests referring to /analytics/dashboard would 404. Documentation nit."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_regression_waautoma_flows.py (new — regression test file added; no source under /app/backend/routers /app/backend/services /app/frontend/src was modified)"
+  ],
+  "success_rate": {"backend": "100% (26/26 pytest across both suites; 1 flaky external timeout on first cold call to public URL, passed on retry)", "frontend": "100% on smoke flows tested (login pos/neg, dashboard, menu, orders, customers, whatsapp, admin, RBAC redirect)"},
+  "test_credentials": "owner@pizzapalace.pk / palace123 ; admin@restaurantai.pk / ChangeMe@2026 (from /app/memory/test_credentials.md — verified working)",
+  "seed_data_creation": "None created directly; simulator flow produced 1 order (#1001) and 1 customer 'Ali' in the demo tenant as part of the AI order test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Existing pytest 12/12 in /app/backend/tests/ still passing. New file test_regression_waautoma_flows.py covers login pos/neg, menu seed, gateway health, tenant/role gating, simulator AI pricing, order confirmation + status update (Title Case enum), customers, analytics/summary. Run with: cd /app/backend && python -m pytest tests/test_regression_waautoma_flows.py -v -o 'addopts='. Note pytest.ini uses pytest-xdist by default; pass -o 'addopts=' if you want single-worker. Two known non-blocking issues: (1) AI reply omits explicit 'Subtotal' line, (2) demo tenant's WhatsApp provider drifts to whatever prior test set (not re-normalized to simulator by seed).",
+  "rca of the issue": "N/A — no blocking bugs. Non-blockers documented under backend_issues.minor and action_items."
+}

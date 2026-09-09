@@ -1,0 +1,200 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'Space Grotesk Variable', sans-serif;
+    --font-sans: 'Plus Jakarta Sans Variable', sans-serif;
+    --font-mono: 'JetBrains Mono Variable', monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+ :root {
+    --background: #f8f9fa;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #d94833;
+    --primary-foreground: #ffffff;
+    --secondary: #eaf4ed;
+    --secondary-foreground: #2c614f;
+    --muted: #f1f5f9;
+    --muted-foreground: #475569;
+    --accent: #eaf4ed;
+    --accent-foreground: #2c614f;
+    --destructive: #b91c1c;
+    --destructive-foreground: #ffffff;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #d94833;
+    --chart-1: #d94833;
+    --chart-2: #2c614f;
+    --chart-3: #f59e0b;
+    --chart-4: #0284c7;
+    --chart-5: #7c3aed;
+    --radius: 0.625rem;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #0f172a;
+    --sidebar-primary: #d94833;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f1f5f9;
+    --sidebar-accent-foreground: #0f172a;
+    --sidebar-border: #e2e8f0;
+    --sidebar-ring: #d94833;
+}
+
+.dark {
+    --background: #0d1111;
+    --foreground: #f5f7f6;
+    --card: #151b1a;
+    --card-foreground: #f5f7f6;
+    --popover: #151b1a;
+    --popover-foreground: #f5f7f6;
+    --primary: #e64833;
+    --primary-foreground: #ffffff;
+    --secondary: #10201c;
+    --secondary-foreground: #4efeba;
+    --muted: #1b2322;
+    --muted-foreground: #9ba3af;
+    --accent: #1e2726;
+    --accent-foreground: #f5f7f6;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #243331;
+    --input: #243331;
+    --ring: #e64833;
+    --chart-1: #e64833;
+    --chart-2: #25d366;
+    --chart-3: #f59e0b;
+    --chart-4: #38bdf8;
+    --chart-5: #a78bfa;
+    --sidebar: #10201c;
+    --sidebar-foreground: #f5f7f6;
+    --sidebar-primary: #e64833;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #1e2726;
+    --sidebar-accent-foreground: #f5f7f6;
+    --sidebar-border: #243331;
+    --sidebar-ring: #e64833;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+
+body {
+  min-width: 320px;
+  font-feature-settings: "ss01";
+}
+.font-heading { font-family: 'Space Grotesk Variable', sans-serif; }
+.font-money { font-family: 'JetBrains Mono Variable', monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* subtle grain to kill flat sterility on large surfaces */
+.noise-bg { position: relative; }
+.noise-bg::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: 0.025; z-index: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.noise-bg > * { position: relative; z-index: 1; }
+
+/* page entrance */
+@keyframes page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.page-enter { animation: page-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes shimmer-line { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.accent-line { height: 3px; border-radius: 999px; background: linear-gradient(90deg, var(--primary), transparent 70%); }
+@media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } }
+
+.wa-bg { background-color: #efeae2; background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23d9d2c5' fill-opacity='0.25'%3E%3Cpath d='M0 20h20v20H0zM20 0h20v20H20z'/%3E%3C/g%3E%3C/svg%3E"); }
+.dark .wa-bg { background-color: #0b141a; background-image: none; }
+.thin-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 999px; }
+.dark .thin-scroll::-webkit-scrollbar-thumb { background: #334155; }
+
+/* dark-mode compatibility for legacy hardcoded palette used across pages */
+.dark .bg-white { background-color: #151b1a !important; }
+.dark .bg-\[\#F9FAF8\] { background-color: #0d1111 !important; }
+.dark .bg-\[\#F7FBF8\] { background-color: #10201c !important; }
+.dark .bg-\[\#F3F4F1\] { background-color: #1e2726 !important; }
+.dark .bg-\[\#FDE9E5\] { background-color: rgba(230, 72, 51, 0.15) !important; }
+.dark .bg-\[\#EAF4ED\] { background-color: rgba(37, 211, 102, 0.12) !important; }
+.dark .bg-\[\#FEF3C7\] { background-color: rgba(245, 158, 11, 0.15) !important; }
+.dark .bg-\[\#E0F2FE\] { background-color: rgba(56, 189, 248, 0.14) !important; }
+.dark .text-\[\#1A1D1A\] { color: #f5f7f6 !important; }
+.dark .text-\[\#6E736D\] { color: #9ba3af !important; }
+.dark .text-\[\#2C614F\] { color: #4efeba !important; }
+.dark .text-\[\#0369A1\] { color: #7dd3fc !important; }
+.dark .text-\[\#A16207\] { color: #fbbf24 !important; }
+.dark .border-\[\#E5E7E2\] { border-color: #243331 !important; }
+.dark .border-\[\#B8C9BC\] { border-color: #2c4a3e !important; }
+.dark .hover\:bg-\[\#F9FAF8\]:hover { background-color: #1b2322 !important; }
+.dark .hover\:bg-\[\#F3F4F1\]:hover { background-color: #1e2726 !important; }
+
+/* Thermal kitchen ticket: print only the ticket, sized for 80mm paper */
+@media print {
+    body * { visibility: hidden !important; }
+    .kitchen-ticket-print, .kitchen-ticket-print * { visibility: visible !important; }
+    .kitchen-ticket-print {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 80mm !important;
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+}
+
+/* Hidden on screen, positioned by the print rules above when printing */
+.offscreen-print { position: fixed; left: -9999px; top: 0; }

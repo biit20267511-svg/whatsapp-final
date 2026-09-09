@@ -1,0 +1,42 @@
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, MessageCircle, Smartphone, Zap } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { apiGet, apiPost, type WhatsAppConfig } from "@/lib/api";
+import { ConnectionBadge } from "@/components/StatusBadge";
+import Simulator from "@/components/Simulator";
+import MetaConfigForm from "@/components/MetaConfigForm";
+
+const providers = [
+  { id: "simulator", title: "Built-in Simulator", description: "Test the full ordering flow without credentials.", icon: Smartphone },
+  { id: "baileys", title: "Baileys QR", description: "Free WhatsApp Web pairing with a persistent session.", icon: Zap },
+  { id: "evolution", title: "Evolution API", description: "Self-hosted QR provider for development.", icon: MessageCircle },
+  { id: "meta", title: "Meta Cloud API", description: "Official WhatsApp provider for production.", icon: CheckCircle2 },
+];
+
+export default function WhatsAppPage() {
+  const [tab, setTab] = useState<"connection" | "simulator">("connection");
+  const [testTo, setTestTo] = useState("");
+  const [testText, setTestText] = useState("Hello from Pizza Palace 👋");
+  const client = useQueryClient();
+  const configQuery = useQuery({ queryKey: ["whatsapp-config"], queryFn: () => apiGet<WhatsAppConfig>("/whatsapp/config") });
+  const wa = configQuery.data;
+  const statusQuery = useQuery({ queryKey: ["whatsapp-status"], queryFn: () => apiGet<WhatsAppConfig>("/whatsapp/status"), enabled: wa?.provider === "baileys", refetchInterval: wa?.provider === "baileys" ? 3000 : false });
+  const providerMutation = useMutation({ mutationFn: (provider: string) => apiPost<WhatsAppConfig>("/whatsapp/provider", { provider }), onSuccess: (data) => { client.setQueryData(["whatsapp-config"], data); void client.invalidateQueries({ queryKey: ["whatsapp-status"] }); } });
+  const connectMutation = useMutation({ mutationFn: () => apiPost<WhatsAppConfig>("/whatsapp/connect"), onSuccess: (data) => { client.setQueryData(["whatsapp-config"], data); client.setQueryData(["whatsapp-status"], data); } });
+  const disconnectMutation = useMutation({ mutationFn: () => apiPost<WhatsAppConfig>("/whatsapp/disconnect"), onSuccess: (data) => { client.setQueryData(["whatsapp-config"], data); client.setQueryData(["whatsapp-status"], data); } });
+  const sendMutation = useMutation({ mutationFn: () => apiPost<{ ok: boolean }>("/whatsapp/send", { to: testTo, text: testText }) });
+  const live = statusQuery.data || wa;
+  return <div data-testid="whatsapp-page" className="mx-auto max-w-6xl space-y-6">
+    <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2C614F]">Customer channels</p><h1 data-testid="whatsapp-heading" className="mt-2 font-heading text-4xl font-extrabold">WhatsApp</h1><p className="mt-2 text-[#6E736D]">Connect a number or test the assistant in the built-in Simulator.</p></div>{live && <ConnectionBadge status={live.status} />}</div>
+    <div className="flex gap-2 border-b border-[#E5E7E2]"><button data-testid="whatsapp-connection-tab" onClick={() => setTab("connection")} className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === "connection" ? "border-[#D94833] text-[#D94833]" : "border-transparent text-[#6E736D]"}`}>Connection</button><button data-testid="whatsapp-simulator-tab" onClick={() => setTab("simulator")} className={`border-b-2 px-4 py-3 text-sm font-semibold ${tab === "simulator" ? "border-[#D94833] text-[#D94833]" : "border-transparent text-[#6E736D]"}`}>Test Simulator</button></div>
+    {tab === "simulator" ? <div data-testid="simulator-panel"><Simulator /></div> : <><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{providers.map(({ id, title, description, icon: Icon }) => <button data-testid={`provider-${id}`} key={id} onClick={() => providerMutation.mutate(id)} className={`rounded-2xl border p-4 text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:shadow-md ${wa?.provider === id ? "border-[#D94833] bg-[#FDE9E5]" : "border-[#E5E7E2] bg-white"}`}><div className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#EAF4ED] text-[#2C614F]"><Icon size={19} /></span>{wa?.provider === id && <CheckCircle2 size={18} className="text-[#D94833]" />}</div><p className="mt-4 font-heading font-bold">{title}</p><p className="mt-1 text-xs leading-relaxed text-[#6E736D]">{description}</p></button>)}</div>
+      <Card data-testid="active-provider-card" className="rounded-2xl border-[#E5E7E2]"><CardContent className="space-y-5 p-6"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-[#6E736D]">Active provider</p><h2 data-testid="active-provider-name" className="mt-2 font-heading text-2xl font-bold capitalize">{wa?.provider || "simulator"}</h2><p data-testid="provider-detail" className="mt-2 text-sm text-[#6E736D]">{wa?.provider === "simulator" ? "Simulator is always connected and ready for end-to-end testing." : wa?.provider === "baileys" ? "Scan once with WhatsApp → Linked devices. The gateway keeps the session on this server and reconnects after restarts." : "Add provider credentials when you are ready to connect a live number."}</p></div>
+        {wa?.provider === "baileys" && <div data-testid="baileys-panel" className="grid gap-6 rounded-2xl bg-[#F9FAF8] p-5 md:grid-cols-[240px_1fr]"><div className="flex min-h-[240px] items-center justify-center rounded-xl bg-white p-3">{live?.qr_code ? <img data-testid="baileys-qr-code" src={live.qr_code} alt="Scan this Baileys QR code with WhatsApp" className="h-56 w-56" /> : <div data-testid="baileys-qr-empty" className="text-center text-sm text-[#6E736D]">{live?.status === "connected" ? "QR cleared — WhatsApp is linked" : "Click Connect to generate a QR code"}</div>}</div><div className="space-y-4"><div className="flex items-center gap-3"><ConnectionBadge status={live?.status} /><span data-testid="baileys-connected-number" className="text-sm text-[#6E736D]">{live?.connected_number || "Not paired"}</span></div><p className="text-sm text-[#6E736D]">Open WhatsApp on your phone → Settings → Linked devices → Link a device, then scan the QR.</p><div className="flex flex-wrap gap-2"><Button data-testid="baileys-connect-button" onClick={() => connectMutation.mutate()} disabled={connectMutation.isPending || live?.status === "connected"} className="rounded-full bg-[#2C614F] hover:bg-[#235041]">{connectMutation.isPending ? "Generating QR…" : live?.status === "connected" ? "Connected" : "Connect Baileys"}</Button><Button data-testid="baileys-disconnect-button" variant="outline" onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending}>Log out device</Button></div><div className="border-t border-[#E5E7E2] pt-4"><p className="mb-2 text-sm font-semibold">Send a test message</p><div className="flex flex-col gap-2 sm:flex-row"><Input data-testid="baileys-test-to-input" value={testTo} onChange={(event) => setTestTo(event.target.value)} placeholder="923001234567" /><Input data-testid="baileys-test-text-input" value={testText} onChange={(event) => setTestText(event.target.value)} /><Button data-testid="baileys-test-send-button" onClick={() => sendMutation.mutate()} disabled={!testTo || !testText || sendMutation.isPending} className="bg-[#D94833] hover:bg-[#C23E2A]">Send</Button></div>{sendMutation.isSuccess && <p data-testid="baileys-send-success" className="mt-2 text-sm text-[#2C614F]">Message sent.</p>}{sendMutation.isError && <p data-testid="baileys-send-error" className="mt-2 text-sm text-rose-700">Could not send — pair the device first.</p>}</div></div></div>}
+        {wa?.provider === "simulator" && <Button data-testid="open-simulator-button" onClick={() => setTab("simulator")} className="rounded-full bg-[#2C614F] hover:bg-[#235041]">Open Test Simulator</Button>}
+        {wa?.provider === "meta" && <MetaConfigForm config={wa} />}
+      </CardContent></Card></>}
+  </div>;
+}

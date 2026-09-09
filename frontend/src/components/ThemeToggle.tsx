@@ -1,0 +1,3 @@
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+export default function ThemeToggle() { const {theme,toggle}=useTheme(); return <button data-testid="theme-toggle" onClick={toggle} title="Toggle dark mode" className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-card text-foreground hover:bg-muted">{theme==="dark"?<Sun size={16}/>:<Moon size={16}/>}</button>; }

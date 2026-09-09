@@ -1,0 +1,29 @@
+{
+  "summary": "Regression pass after deployment env-loading fixes (load_dotenv override=False in server.py & database.py, .gitignore change). All targeted checks green. Backend boots and reads env correctly; JWT auth (env JWT_SECRET), Mongo (env MONGO_URL/DB_NAME), and AI (env EMERGENT_LLM_KEY) all function. Existing pytest suite: 26/26 passed. Frontend login sanity: owner reaches /dashboard.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "GET /api/health": "200 {status:healthy}",
+    "GET /api/": "200 {status:ok}",
+    "POST /api/auth/login owner ok": "200, access_token issued",
+    "POST /api/auth/login wrong pwd": "401",
+    "GET /api/auth/me": "200, restaurant=Pizza Palace",
+    "POST /api/auth/login admin": "200, access_token issued",
+    "GET /api/admin/summary": "200, MRR=90000, 21 restaurants",
+    "GET /api/orders": "6 orders (seed 1001-1006 present)",
+    "GET /api/menu": "5 categories, 6 items",
+    "POST /api/simulator/message": "AI returned real menu reply (non-fallback) for +923009999112",
+    "pytest /app/backend": "26 passed in 15.96s",
+    "frontend owner login -> /dashboard": "success"
+  },
+  "test_report_links": ["/app/backend/tests/test_regression_waautoma_flows.py", "/app/test_reports/pytest/iteration_4.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@pizzapalace.pk/palace123; admin@restaurantai.pk/ChangeMe@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None (used existing seed + created 1 sim conversation +923009999112)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Deployment env-loading regression verified fully green. Orders count is now 6 (seed 1001-1006); update assertions in future if a strict ==5 check exists."
+}

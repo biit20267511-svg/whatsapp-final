@@ -1,0 +1,208 @@
+{
+  "theme": "hybrid-dual-mode",
+  "theme_strategy": "Class-based dark/light toggle with operations-focused high contrast styling. Dark mode serves kitchen & active line staff ('Kitchen Ops Command Center'), Light mode serves daytime management & cashier counter ('Front Desk Cashier'). Brand anchors: Crimson Ember (#D94833) for action triggers, WhatsApp Emerald (#25D366) for customer connectivity, Deep Slate Charcoal (#0D1111 / #151B1A) for dark mode background, and Crisp Clean Cream/Off-White (#F8F9FA) for light mode.",
+  "colors": {
+    "surfaces": [
+      {
+        "name": "page_dark",
+        "kind": "solid",
+        "bg": "#0D1111",
+        "on_bg": "#F5F7F6",
+        "on_bg_muted": "#9BA3AF",
+        "roles": {
+          "link": "#F87171",
+          "error": "#EF4444",
+          "success": "#22C55E",
+          "warning": "#F59E0B",
+          "info": "#38BDF8"
+        }
+      },
+      {
+        "name": "panel_dark",
+        "kind": "solid",
+        "bg": "#151B1A",
+        "on_bg": "#F5F7F6",
+        "on_bg_muted": "#94A3B8",
+        "roles": {
+          "border": "#243331",
+          "border_focus": "#D94833",
+          "hover_bg": "#1E2726"
+        }
+      },
+      {
+        "name": "page_light",
+        "kind": "solid",
+        "bg": "#F8F9FA",
+        "on_bg": "#0F172A",
+        "on_bg_muted": "#475569",
+        "roles": {
+          "link": "#DC2626",
+          "error": "#B91C1C",
+          "success": "#15803D",
+          "warning": "#B45309",
+          "info": "#0284C7"
+        }
+      },
+      {
+        "name": "panel_light",
+        "kind": "solid",
+        "bg": "#FFFFFF",
+        "on_bg": "#0F172A",
+        "on_bg_muted": "#475569",
+        "roles": {
+          "border": "#E2E8F0",
+          "border_focus": "#D94833",
+          "hover_bg": "#F1F5F9"
+        }
+      }
+    ],
+    "accent": "#D94833",
+    "on_accent": "#FFFFFF",
+    "secondary_accent": "#2C614F",
+    "on_secondary_accent": "#FFFFFF",
+    "whatsapp_brand": "#25D366"
+  },
+  "typography": {
+    "font_heading": "'Space Grotesk Variable', -apple-system, sans-serif",
+    "font_body": "'Plus Jakarta Sans Variable', sans-serif",
+    "font_mono": "'JetBrains Mono Variable', monospace",
+    "scale_px": {
+      "display": 48,
+      "h1": 36,
+      "h2": 28,
+      "h3": 20,
+      "h4": 16,
+      "body": 14,
+      "caption": 12
+    },
+    "typesetting_rules": {
+      "headings": "tracking-tight font-extrabold text-foreground",
+      "labels_overlines": "text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground",
+      "pkr_numbers": "font-mono font-bold tracking-tight tabular-nums",
+      "body": "leading-relaxed text-sm text-foreground/90"
+    }
+  },
+  "orders_tab_redesign_blueprint": {
+    "goal": "Transform the Orders tab from a static Kanban board into a high-octane, decent yet visually stunning Pakistani Restaurant Operations Command Board. Combines real-time urgency, intuitive action buttons, audio alerts, dual view modes (Kanban Board vs Density Table), and a detailed slide-over order drawer with WhatsApp customer triggers and thermal receipt printing.",
+    "core_components": [
+      {
+        "name": "Operations Header & Live Controls",
+        "description": "Top bar featuring live WhatsApp AI status indicator (pulsing green dot 'AI Bot Active'), audio alert toggle switch (with sound ping on new orders), search input (by order #, customer name, phone, or dish name), order type filter (All, Delivery, Pickup), and quick time preset chips (Today, Active Only, All Time)."
+      },
+      {
+        "name": "Real-Time Orders Metrics Ribbon",
+        "description": "4-card metric strip showing: 1) Active Orders count (New + Preparing + Ready + Delivery), 2) Urgent Pending Confirmation count (flashing amber badge if > 0), 3) Avg Prep & Fulfillment Time in PKR/min, 4) Total Revenue Today in PKR (e.g., Rs. 48,500)."
+      },
+      {
+        "name": "View Mode Switcher (Kanban vs Table)",
+        "description": "Segmented tab control allowing staff to toggle between 'Visual Pipeline' (Kanban columns with urgency highlight cards) and 'Command Table' (high-density filterable grid with inline status dropdowns)."
+      },
+      {
+        "name": "Interactive Order Cards (Kanban Mode)",
+        "description": "Cards with distinct visual hierarchy: Order # badge (#1001+), WhatsApp logo badge, elapsed time ticker (e.g. '3m ago'), customer details with phone click-to-WhatsApp, order type pill (Delivery bike icon or Pickup store icon), item preview list with quantities & prices in PKR, grand total highlighted, and DIRECT ONE-CLICK ACTION BUTTON (e.g., 'Confirm Order →', 'Start Prep 🍳', 'Ready for Pickup 📦', 'Dispatch Rider 🏍️')."
+      },
+      {
+        "name": "High-Density Table View (Table Mode)",
+        "description": "Clean tabular view with sticky headers, checkbox bulk actions, quick status dropdowns, driver assignment column, PKR total, and 'Quick View' button triggering the slide-over drawer."
+      },
+      {
+        "name": "Slide-over Order Detail Drawer & Receipt Preview",
+        "description": "Detailed drawer opening on card click featuring: 1) Complete customer profile & delivery address with Google Maps link, 2) Step-by-step timestamped lifecycle progress timeline, 3) Itemized kitchen order ticket with spice level & special notes (e.g. 'Extra Raita & Less Spicy'), 4) Rider/Delivery Boy assignment dropdown, 5) One-click 'Notify Customer on WhatsApp' template trigger (Send status update message directly), 6) Thermal Receipt Print Preview modal/button."
+      }
+    ],
+    "status_lifecycle_color_map": {
+      "New": {
+        "badge_bg": "bg-amber-500/15 text-amber-500 border-amber-500/30",
+        "card_accent": "border-l-4 border-l-amber-500",
+        "action_btn": "bg-amber-500 hover:bg-amber-600 text-white font-bold"
+      },
+      "Confirmed": {
+        "badge_bg": "bg-blue-500/15 text-blue-500 border-blue-500/30",
+        "card_accent": "border-l-4 border-l-blue-500",
+        "action_btn": "bg-blue-600 hover:bg-blue-700 text-white font-bold"
+      },
+      "Preparing": {
+        "badge_bg": "bg-orange-500/15 text-orange-500 border-orange-500/30",
+        "card_accent": "border-l-4 border-l-orange-500",
+        "action_btn": "bg-orange-500 hover:bg-orange-600 text-white font-bold"
+      },
+      "Ready": {
+        "badge_bg": "bg-purple-500/15 text-purple-500 border-purple-500/30",
+        "card_accent": "border-l-4 border-l-purple-500",
+        "action_btn": "bg-purple-600 hover:bg-purple-700 text-white font-bold"
+      },
+      "Out for Delivery": {
+        "badge_bg": "bg-cyan-500/15 text-cyan-500 border-cyan-500/30",
+        "card_accent": "border-l-4 border-l-cyan-500",
+        "action_btn": "bg-cyan-600 hover:bg-cyan-700 text-white font-bold"
+      },
+      "Delivered": {
+        "badge_bg": "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+        "card_accent": "border-l-4 border-l-emerald-500",
+        "action_btn": "bg-emerald-600 text-white opacity-90 cursor-default"
+      },
+      "Cancelled": {
+        "badge_bg": "bg-rose-500/15 text-rose-500 border-rose-500/30",
+        "card_accent": "border-l-4 border-l-rose-500",
+        "action_btn": "bg-slate-700 text-slate-300 cursor-not-allowed"
+      }
+    }
+  },
+  "visual_enhancers": {
+    "card_style": "1px crisp border (border-border/60), subtle backdrop blur on elevated cards (backdrop-blur-md bg-card/85), 12px nested radii (rounded-xl), hover lift (-translate-y-0.5 transition-transform duration-200)",
+    "stat_cards": "Bento-style with top accent indicator line (2px crimson or emerald glow), subtle gradient fill (from-primary/10 via-transparent to-transparent), large mono metric, and delta percentage pill badge",
+    "noise_texture": "Subtle 2% SVG noise background to kill flat digital sterility on command center viewports",
+    "live_pulse": "Pulsing animation ring on live pending order alerts and audio chime indicator"
+  },
+  "image_urls": [
+    {
+      "category": "kitchen_action",
+      "url": "https://images.unsplash.com/photo-1503453776591-b4548af666a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHw0fHxyZXN0YXVyYW50JTIwa2l0Y2hlbiUyMGNoZWYlMjBjb29raW5nJTIwZnJlc2glMjBmb29kfGVufDB8fHx8MTc4ODI4NjI5NHww&ixlib=rb-4.1.0&q=85",
+      "description": "Master chef garnishing dish in professional kitchen"
+    },
+    {
+      "category": "delivery_rider",
+      "url": "https://images.unsplash.com/photo-1526367790999-0150786686a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwxfHxkZWxpdmVyeSUyMHJpZGVyJTIwbW90b3JjeWNsZXxlbnwwfHx8fDE3ODgyODYyOTR8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Food delivery rider with helmet on motorbike"
+    },
+    {
+      "category": "biryani_dish",
+      "url": "https://images.pexels.com/photos/9738983/pexels-photo-9738983.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Pakistani Dum Biryani with saffron rice and garnish"
+    }
+  ],
+  "motion": {
+    "page_transition": "animate-in fade-in duration-300 ease-out",
+    "card_hover": "transition-all duration-200 hover:shadow-lg hover:border-primary/40",
+    "modal_entrance": "zoom-in-95 duration-200",
+    "reduced_motion": "motion-reduce:transition-none motion-reduce:animate-none"
+  },
+  "accessibility": {
+    "apca_contrast": "All text tokens exceed 4.5:1 on their declared surface. Muted text strictly uses #9BA3AF or lighter on dark (#0D1111) and #475569 on light (#F8F9FA).",
+    "testing_attributes": "All interactive elements (buttons, filters, switches, tabs, cards, dropdowns, drawer triggers) MUST include kebab-case role-based data-testid attributes (e.g. data-testid='orders-view-toggle-kanban', data-testid='order-action-confirm-1001', data-testid='order-detail-drawer').",
+    "focus_states": "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none"
+  },
+  "instructions_to_main_agent": [
+    "1. Redesign `frontend/src/pages/Orders.tsx` into a world-class, decent, yet super cool Pakistani restaurant operations dashboard.",
+    "2. Add the real-time top metrics ribbon (Active Orders, Urgent Pending count, Avg Prep Time, Total Revenue Today in PKR).",
+    "3. Add top control bar: live WhatsApp bot active status badge, audio alert sound toggle, search bar (debounced), and order type/time filter chips.",
+    "4. Implement Kanban vs Table view switcher with smooth transitions.",
+    "5. In Kanban view, render 6 clear status columns with status counter badges, urgency border accent, customer name, phone with WhatsApp link icon, item summary with PKR prices, and quick action button directly on card for status advancing.",
+    "6. Add slide-over detail Sheet/Drawer when clicking any order card or 'Quick View' button, displaying complete customer info, address with map link, timestamped order timeline, full itemized receipt breakdown in PKR, driver assignment dropdown, WhatsApp customer notify buttons, and thermal print preview trigger.",
+    "7. Ensure all new interactive elements have proper `data-testid` attributes following the project's testing conventions."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": {
+    "never_use": [
+      "Generic blue SaaS gradients",
+      "Full transparent dropdown menus or popovers",
+      "Unstyled raw HTML datepicker or select elements (always use custom Shadcn)",
+      "Universal 'transition: all' which causes jittery layout recalculations"
+    ],
+    "always_do": [
+      "Use crisp 1px borders with opacity-controlled contrast (border-border/60)",
+      "Provide immediate optimistic UI or sonner toast notifications for user actions",
+      "Keep PKR currency symbol and thousands separators clean (e.g., Rs. 2,500)",
+      "Ensure every interactive element has a data-testid attribute for automated testing"
+    ]
+  }
+}

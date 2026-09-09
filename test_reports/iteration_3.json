@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only regression on the redesigned Orders page (iteration 3). Logged in as owner@pizzapalace.pk / palace123 and exercised every data-testid the review request called out. All 40 assertions passed. Board view renders the metrics ribbon (Active=4, Awaiting=1, Revenue today=PKR 6,280, Avg=PKR 1,570), 'AI bot live' pulse, search input, All/Delivery/Pickup chips, Board/Table toggle and sound toggle. All 6 Kanban columns (New, Confirmed, Preparing, Ready, Out for Delivery, Delivered) render with count badges. Seeded orders #1001-#1004 are present. Clicking order-action-advance-1001 (Confirm order →) moved the card from New→Confirmed (verified by column membership after refetch). Slide-over drawer opens on card click and on the table row Eye button (order-quick-view-*). Drawer shows customer info + wa.me chat link, full receipt (Subtotal PKR 1,420 + Delivery fee PKR 150 = Total PKR 1,570 — math correct), status chips, advance/cancel buttons, 'Notify customer on WhatsApp' link with pre-filled Roman-Urdu text (?text=Assalam%20o%20Alaikum...), and a status timeline (New / Confirmed). drawer-set-status-preparing successfully advanced the order and drawer StatusBadge updated to Preparing. Table view renders 4 rows with inline order-status-select-{number} Select components; changing to 'Ready' persisted (select value shows Ready after refetch). Search input filters — 'ZZZ_NO_MATCH' produces the 'No orders match your filters' empty state; searching 'Ali' returns 4 rows. Type-filter chips partition cleanly (all=4, delivery=4, pickup=0). Sound toggle writes localStorage key 'orders-sound' (null → 'off'), and after a full page reload the value AND button label ('New order chime off') persist. Full-page /orders/{id} regression: drawer 'Open full order page' link navigated to /orders/<uuid> which renders the untouched detail page with correct totals. No console errors observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_regression_waautoma_flows.py (unchanged from iter 2)"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Orders.tsx line 99-103: `prevMax.current` is set inside the effect on the FIRST run when maxNumber>0, so the chime never fires for the very first order of a session (intentional to avoid ringing on mount, but worth noting). Also the effect depends only on maxNumber+sound — if an order with a LOWER number arrives after a higher one is deleted, no chime; acceptable for MVP.",
+    "Orders.tsx line 122: search string concatenates `#${order.order_number}` — if a user types just a digit like '1' every order matches; low-priority UX polish.",
+    "OrderDrawer.tsx uses `format(new Date(iso), ...)` from date-fns for timeline stamps; if `entry.at` is missing or malformed the try/catch returns the raw ISO — fine, but timeline keys use `${entry.status}-${entry.at}` which can collide if a status is set twice at the same second (very unlikely).",
+    "orderStatus.ts nextStatus() correctly stops at 'Delivered' and returns null for 'Cancelled' (not in FLOW) — the advance pill is hidden appropriately in the drawer/card.",
+    "Sound toggle uses localStorage synchronously in useState initializer — SSR-safe here (Vite CSR) but would break under SSR; not applicable to this stack.",
+    "Chime uses `new AudioContext()` without user-gesture reuse — modern browsers may block until first interaction; toggling the button itself is a gesture so it will unlock. Non-blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested this iteration (frontend-only per request; backend was 26/26 in iter 2)", "frontend": "100% (40/40 assertions on Orders redesign)"},
+  "test_credentials": "owner@pizzapalace.pk / palace123 (from /app/memory/test_credentials.md — verified working)",
+  "seed_data_creation": "None. Test mutated statuses of seeded orders #1001 (New→Confirmed via quick-advance) and #1004 (Confirmed→Preparing via drawer chip); one table-row select was flipped to 'Ready'. All are seeded demo orders and safe to mutate per review-request note.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Orders page redesign is fully verified. Selectors that worked reliably: orders-page, orders-heading, orders-live-indicator, orders-sound-toggle, orders-search-input, orders-filter-{all|delivery|pickup}, orders-view-toggle-{board|table}, metric-{active-orders|awaiting-confirm|today-revenue|avg-order}, orders-column-{new|confirmed|preparing|ready|out-for-delivery|delivered}, order-card-{number}, order-action-advance-{number}, order-card-whatsapp-{number}, order-row-{number}, order-status-select-{number}, order-quick-view-{number}, order-detail-drawer, drawer-whatsapp-link, drawer-set-status-{status-slug}, drawer-advance-status, drawer-cancel-order, drawer-notify-whatsapp, drawer-open-full-page. IMPORTANT: use `wait_until='domcontentloaded'` for goto — the page polls /api/orders every 12s so 'networkidle' never resolves. Login: [data-testid=login-email-input] / [data-testid=login-password-input] / [data-testid=login-submit-button]. Backend regression tests untouched at /app/backend/tests/test_regression_waautoma_flows.py (last run: 14/14).",
+  "rca of the issue": "N/A — no bugs. Only observation: two prior test runs left #1001 in Confirmed state after the quick-advance test; if the main agent wants deterministic demo state they can reset via PATCH /api/orders/{id}/status back to 'New' or add an idempotent re-seed on startup (already noted in iter 2)."
+}

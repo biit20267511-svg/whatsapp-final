@@ -1,0 +1,111 @@
+{
+  "iteration": 1,
+  "summary": "8/8 acceptance criteria exercised with 1 backend test file + 1 browser check each (13 backend tests across the 6 API-bearing criteria + 8 browser checks). All artifacts passed on first or second run.",
+  "passed": 8,
+  "failed": 0,
+  "bugs": [],
+  "action_items": [],
+  "retest_needed": false,
+  "checks": [
+    {
+      "criterion": "Super Admin can log in and only SUPER_ADMIN can access /admin",
+      "name": "test_tscheck_admin_login_and_role_gate.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "GET /admin/summary with SUPER_ADMIN token -> 200 {total_restaurants, mrr,...}; GET /admin/summary with owner token -> 403 'Super Admin access required'"
+    },
+    {
+      "criterion": "Super Admin can log in and only SUPER_ADMIN can access /admin",
+      "name": "admin-login-and-role-gate",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "admin@restaurantai.pk login -> redirected to /admin, admin-dashboard visible with stat tiles; owner@pizzapalace.pk login -> /dashboard, direct nav to /admin redirected away (not /admin)"
+    },
+    {
+      "criterion": "Super Admin can create a restaurant with generated one-time credentials",
+      "name": "test_tscheck_admin_create_restaurant.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "POST /admin/restaurants -> 200 {credentials:{username,password,login_url}}; new id present in GET /admin/restaurants; generated creds successfully POST /auth/login -> 200"
+    },
+    {
+      "criterion": "Super Admin can create a restaurant with generated one-time credentials",
+      "name": "admin-create-restaurant-shows-credentials",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Add Restaurant form submit shows created-credentials block with username/password once; new row tscheck-browser-<ts> appears in Restaurants table"
+    },
+    {
+      "criterion": "Manual subscription management works",
+      "name": "test_tscheck_manual_subscription_management.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "GET /admin/subscriptions shows status/end_date/monthly_price; POST /admin/reminders -> 200 {type:SUBSCRIPTION_REMINDER,status:CREATED}; POST /admin/restaurants/{id}/payment on a SUSPENDED sub -> 200 {status:ACTIVE,payment_status:PAID,end_date>before}"
+      ,
+      "notes": "3 tests in this file, all passed"
+    },
+    {
+      "criterion": "Manual subscription management works",
+      "name": "subscriptions-reminder-and-payment",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Created tscheck-sub-<ts> restaurant; clicked Send Reminder -> POST /api/admin/reminders 200; clicked Payment Received -> POST /api/admin/restaurants/{id}/payment 200 body {status:ACTIVE,payment_status:PAID}"
+    },
+    {
+      "criterion": "Restaurant subscription gate preserves billing access",
+      "name": "test_tscheck_subscription_gate_preserves_billing.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "ACTIVE tenant: GET /billing -> 200 ACTIVE, GET /orders -> 200. After admin PATCH status=SUSPENDED: GET /orders -> 402 {code:SUBSCRIPTION_BLOCKED}; GET /billing -> 200 (still accessible) with status SUSPENDED"
+    },
+    {
+      "criterion": "Restaurant subscription gate preserves billing access",
+      "name": "subscription-gate-blocks-suspended-tenant",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Created tscheck-gate-<ts>, suspended via admin toggle (200), logged in as that tenant -> app router redirected to /billing (not /dashboard) and billing page rendered; console showed expected 402s from other protected APIs the frontend still probes"
+    },
+    {
+      "criterion": "Restaurant tenant isolation and existing dashboard remain functional",
+      "name": "test_tscheck_tenant_isolation.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "owner@pizzapalace.pk: GET /auth/me, /orders, /menu, /customers all 200 and orders scoped to own restaurant_id; GET /admin/restaurants -> 403"
+    },
+    {
+      "criterion": "Restaurant tenant isolation and existing dashboard remain functional",
+      "name": "restaurant-dashboard-tenant-isolation",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "owner login shows dashboard-shell with restaurant-name 'Pizza Palace'; Orders/Menu/Customers nav all render; direct nav to /admin does not reach admin shell"
+    },
+    {
+      "criterion": "Dark mode works across both panels",
+      "name": "dark-mode-persists-across-panels",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Toggled dark mode in restaurant dashboard, html gains 'dark' class, persists across reload; admin panel (after login) also shows 'dark' class from persisted preference; both shells rendered without visual break; toggled back off"
+    },
+    {
+      "criterion": "Google Sheets configuration architecture is available",
+      "name": "google-sheets-config-saves-masked",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "PUT /api/google-sheets/config -> 200, response echoes spreadsheet_id and returns google_client_secret_masked (never plaintext secret); page states 'Live OAuth sync activates after credentials are provided'"
+    },
+    {
+      "criterion": "Super Admin settings and credential changes are protected",
+      "name": "test_tscheck_admin_settings_and_credentials_protected.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "PUT /admin/settings monthly_price editable (200, value persisted then restored); PUT /admin/profile with wrong current_password -> 400; correct current_password rotates password (200), audit-logs contains action UPDATED_ADMIN_PROFILE; original credentials restored at end of test"
+    },
+    {
+      "criterion": "Super Admin settings and credential changes are protected",
+      "name": "admin-settings-price-and-credentials-protected",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Platform monthly price editable via blur -> PUT 200 persisted then restored; reminder template field present; wrong current password -> PUT /api/admin/profile 400; correct password rotates (200) and shows 'Admin credentials updated.'; original password restored via fresh login"
+    }
+  ]
+}

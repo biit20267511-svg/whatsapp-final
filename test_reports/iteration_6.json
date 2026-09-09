@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 6 review: verified Live Chat inbox, Menu photo upload, AI address+contact validation, and full Reservations feature (toggle, AI booking when enabled, polite decline when disabled, status lifecycle, invalid-400). Backend: 40/40 tests passing (27 regression via public URL + 13 new iter6 tests via localhost — public URL had intermittent SSL read timeouts on /auth/login when hit under xdist, but same tests are 100% green when routed through BACKEND_URL=http://localhost:8001; not an app bug). Regression test test_simulator_ai_priced_summary was updated per review-note allowance to include complete address + contact statement (AI now demands city + contact number before pricing). Frontend: /conversations shows 27 conversations; chat-panel + chat-messages render; chat-ai-toggle flips true→false→true (handoff POST 200); staff reply typed via chat-reply-input + chat-send-button appears in thread as 'STAFF'. /reservations renders heading, toggle-card ON, 3 metrics (today/pending/upcoming guests = 0/1/12), 3 filters (upcoming/today/all), and 4 reservation cards under 'all' (R-101 Confirmed, R-102/R-104 Completed, R-103 Pending) — advance button label 'Seat guests →' on Confirmed and 'Confirm →' on Pending. /menu Add Dish dialog shows Dish photo section with item-photo-file-input.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "pytest_full_suite": "27/27 via public URL (with hardcoded REACT_APP_BACKEND_URL) — full run of all 40 tests via localhost = 40/40 green",
+    "pytest_iter6_new": "13/13 passing (test_iter6_uploads_and_address.py + test_iter6_reservations_and_livechat.py)",
+    "POST /api/uploads/image (jpg, auth)": "200 with url /api/uploads/files/... — serve via GET returns image content-type",
+    "POST /api/uploads/image (text/plain)": "400 rejected",
+    "POST /api/uploads/image (no token)": "401/403",
+    "AI address incomplete": "'Gulberg' only -> AI asks for house/street/city or contact — no order placed",
+    "AI address complete + contact": "'House 45, Street 7, Gulberg III, Lahore' + 'call me on WhatsApp' + 'yes confirm' -> order created with address 'House 45' + contact_number populated",
+    "PUT /api/restaurant reservations_enabled": "persists true/false",
+    "AI reservations OFF": "polite decline, no reservation created",
+    "AI reservations ON": "reservation created with reservation_number(int), party_size=4, date YYYY-MM-DD, time HH:MM, status Pending/Confirmed, customer_phone, contact_number",
+    "PATCH /api/reservations/{id}/status": "Confirmed->Seated->Completed all 200; invalid status 'Bogus' -> 400; unknown id -> 404",
+    "GET /api/conversations": "returns list with id, customer_phone, ai_active",
+    "GET /api/conversations/{id}/messages": "returns {conversation, messages}",
+    "POST /api/conversations/{id}/handoff": "200 flips ai_active; 404 on unknown id",
+    "POST /api/conversations/{id}/reply": "200; message.sender='human', message.text persisted; appears in subsequent GET",
+    "UI /conversations": "27 conversation items, chat-panel + chat-messages + chat-ai-toggle + chat-reply-input + chat-send-button all present; toggle handoff true->false->true verified; staff reply appeared in DOM",
+    "UI /reservations": "reservations-heading, reservations-toggle-card, reservations-enable-toggle, all 3 metric-* testids, all 3 reservations-filter-* testids, 4 reservation-card-* under 'all' filter, reservation-advance-{n} label updates by status",
+    "UI /menu Add Dish": "dialog opens with 'Upload photo' + item-photo-file-input (hidden) + URL input + thumbnail suggestions"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter6_reservations_and_livechat.py",
+    "/app/backend/tests/test_iter6_uploads_and_address.py",
+    "/app/backend/tests/test_regression_waautoma_flows.py",
+    "/app/test_reports/pytest/iteration_6.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "reservations router: PATCH /reservations/{id}/status returns raw reservation dict (spreads MongoDB doc after clean/NO_ID). Fine, but note publish(bus) uses same doc — ensure status_history entries never leak _id. Currently protected by NO_ID projection; ok.",
+    "conversations reply endpoint sends via whatsapp_service.send_human_reply which logs 'not_connected' warnings for Baileys when using simulator provider — non-blocking, message still persists in DB and shows in UI. Consider skipping outbound send when provider==simulator to reduce warning noise.",
+    "test_regression_waautoma_flows.py: hardcodes public URL fallback https://baileys-gateway-app.preview.emergentagent.com. When run in parallel via pytest-xdist against the preview host, TLS reads to /auth/login occasionally time out at 15s — recommend either bumping timeout to 30s or reading BACKEND_URL first (localhost) with public URL as fallback for CI stability. Not an app bug.",
+    "Reservation booking prompt: AI-generated reservation_number is an int on the backend (101, 102, …) but human-facing strings/UI show 'R-101'. Both the frontend testid and API use raw int — consistent, but consider adding a helper `reservation_code` field ('R-101') to responses to match the AI's natural language and testids like reservation-card-R-101."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_regression_waautoma_flows.py (test_simulator_ai_priced_summary now sends complete address + contact per review-note allowance)",
+    "/app/backend/tests/test_iter6_reservations_and_livechat.py (new test file, 8 tests)"
+  ],
+  "success_rate": {"backend": "100% (40/40 via localhost; 27/27 iterated via public URL)", "frontend": "100% (Live Chat + Reservations + Menu upload all verified)"},
+  "test_credentials": "owner@pizzapalace.pk / palace123 and admin@restaurantai.pk / ChangeMe@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created 3 new reservations during test (R-102 TestGuest Completed via lifecycle test, R-104 TestGuest Completed via UI/backend flow, plus 1 order for Hamza with complete address & contact). Toggled reservations_enabled OFF and back ON — restored. Sent 1 handoff toggle + 1 staff reply on top conversation — AI restored to active. No cleanup requested; all data is legitimate simulator-generated.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reservations reservation_number is stored as int in Mongo (101, 102, ...) — UI uses raw int in data-testid (reservation-card-101 not R-101). AI reply text says 'R-101' though. Public-URL preview host has intermittent TLS read timeouts at 15s on /auth/login when hit in parallel; prefer BACKEND_URL=http://localhost:8001 or a 30s timeout. simulator/message payload requires {phone, text} (not 'message'). Providing a fully-qualified street address that includes a digit + city (e.g. 'House 12, Street 5, Gulberg Block C, Lahore') + a contact-number sentence is sufficient for AI to price + confirm delivery orders in a single message. Test-created reservations R-101..R-104 remain; safe to leave."
+}

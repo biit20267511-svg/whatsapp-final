@@ -1,0 +1,34 @@
+{
+  "summary": "Verified new Order Detail page redesign + SSE Live Push (order status change + new_order toast). All 26 backend pytests pass. SSE stream endpoint sanity green (event: ready on valid token, 401 on invalid). Order Detail renders all required data-testids (heading #order_number, StatusBadge, stepper, receipt with correct math, customer card with WhatsApp/Map links, timeline, kitchen ticket dialog, advance/cancel/print buttons). Clicking a status chip updates status + timeline in real time. LIVE PUSH: external curl PATCH /api/orders/{id}/status pushed to open board <1s via SSE (order card moved Confirmed→Ready column with new advance button 'Dispatch' — well within the 3s target and much faster than 30s polling, proving SSE is the actual update path). LIVE PUSH new_order: sending sim messages via /api/simulator/message caused a new order card (#1009) to appear AND a sonner toast 'New order #1009 From TestUser — via WhatsApp AI' to show top-right within ~7.5s of the 2nd sim message.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "pytest /app/backend": "26 passed in 14.97s",
+    "GET /api/stream?token=<valid>": "200 text/event-stream, emits 'event: ready\\ndata: connected'",
+    "GET /api/stream?token=bad": "401 Not authenticated",
+    "OrderDetail /orders/{id}": "renders order-detail-page + heading '#1007' + StatusBadge + timeAgo + stepper + all cards",
+    "OrderDetail testids present": "order-back-button, order-detail-heading, order-status-stepper, set-order-status-{new|confirmed|preparing|ready|out-for-delivery|delivered|cancelled}, advance-order-status-button, cancel-order-button, order-print-ticket-button, order-receipt-card, order-customer-card, order-whatsapp-chat-link, order-notify-whatsapp, order-map-link (for delivery orders), order-timeline-card, kitchen-ticket-dialog",
+    "Receipt math": "subtotal(1420) + delivery_fee(150) == total(1570) [order 1007]",
+    "Status chip click": "set-order-status-preparing -> StatusBadge shows 'Preparing', timeline card renders new entry, advance button label updates accordingly",
+    "Kitchen ticket": "order-print-ticket-button opens kitchen-ticket-dialog (window.print skipped in headless per note)",
+    "LIVE PUSH order_update (SSE)": "External PATCH /api/orders/{id}/status while board open -> card moved to new column within ~1s (well under 3s SLA and far faster than 30s polling)",
+    "LIVE PUSH new_order (SSE)": "sim messages create order + card #1009 appears in NEW column + sonner toast 'New order #1009 From TestUser — via WhatsApp AI' shows top-right (~7.5s from POST)",
+    "Sonner Toaster mounted": "richColors top-right (visible in screenshot)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_regression_waautoma_flows.py",
+    "/app/test_reports/pytest/iteration_5.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "RealtimeContext.tsx: EventSource has no onerror handler and no reconnect/backoff — if the connection drops (proxy timeout, network flap) the client silently stops receiving updates until a re-render or login change. Consider onerror + exponential-backoff reconnect. Impact today is low because polling still runs at 30s.",
+    "stream.py: on invalid token the endpoint currently returns 401 as a JSON response (good). EventSource in the browser will fire 'error' without a body — combined with the missing onerror above, this is silent. Non-blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@pizzapalace.pk / palace123 (used); admin@restaurantai.pk / ChangeMe@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created 2 test orders via simulator during testing: #1008 (phone +923005556677, name Bilal) and #1009 (phone +9230055xxxxx, name TestUser). Both are legitimate simulator-created orders and can remain. Order #1007 was toggled Confirmed↔Preparing↔Ready during tests and RESET back to Confirmed at end.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Simulator payload requires {phone, text} (NOT 'message'). PATCH /api/orders/{id}/status (not /api/orders/{id}). SSE stream working end-to-end; live updates observed within 1-8s. Toaster mounted via main.tsx (sonner). Use wait_until='domcontentloaded' for page.goto (SSE keeps connection open, networkidle never resolves). Two extra demo orders (#1008 Bilal, #1009 TestUser) now exist — no cleanup requested."
+}
