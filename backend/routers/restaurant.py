@@ -1,10 +1,20 @@
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from auth import get_current_restaurant_id
-from database import NO_ID, clean, db
+from database import NO_ID, clean, db, new_id
 
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
+
+
+class DeliveryZone(BaseModel):
+    id: str | None = None
+    name: str
+    aliases: list[str] = []
+    fee: float = Field(default=0, ge=0)
+    min_order: float | None = Field(default=None, ge=0)
+    eta_min: int | None = Field(default=None, ge=0)
+    active: bool = True
 
 
 class RestaurantUpdate(BaseModel):
@@ -16,15 +26,20 @@ class RestaurantUpdate(BaseModel):
     city: str | None = None
     opening_hours: str | None = None
     delivery_areas: str | None = None
-    delivery_fee: float | None = None
-    min_order: float | None = None
-    prep_time_min: int | None = None
-    prep_time_max: int | None = None
-    delivery_time_min: int | None = None
-    delivery_time_max: int | None = None
+    delivery_fee: float | None = Field(default=None, ge=0)
+    min_order: float | None = Field(default=None, ge=0)
+    prep_time_min: int | None = Field(default=None, ge=0)
+    prep_time_max: int | None = Field(default=None, ge=0)
+    delivery_time_min: int | None = Field(default=None, ge=0)
+    delivery_time_max: int | None = Field(default=None, ge=0)
     currency: str | None = None
     ai_greeting: str | None = None
     reservations_enabled: bool | None = None
+    delivery_enabled: bool | None = None
+    pickup_enabled: bool | None = None
+    delivery_mode: str | None = None
+    restrict_to_zones: bool | None = None
+    delivery_zones: list[DeliveryZone] | None = None
 
 
 class AISettingsUpdate(BaseModel):
@@ -60,6 +75,17 @@ async def get_restaurant(rid: str = Depends(get_current_restaurant_id)):
 @router.put("")
 async def update_restaurant(body: RestaurantUpdate, rid: str = Depends(get_current_restaurant_id)):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "delivery_mode" in updates and updates["delivery_mode"] not in {"fixed", "zones"}:
+        raise HTTPException(status_code=400, detail="delivery_mode must be 'fixed' or 'zones'")
+    if "delivery_zones" in updates:
+        zones, seen = [], set()
+        for zone in updates["delivery_zones"]:
+            name = zone["name"].strip()
+            if not name or name.lower() in seen:
+                continue
+            seen.add(name.lower())
+            zones.append({**zone, "id": zone.get("id") or new_id(), "name": name, "aliases": [a.strip() for a in zone.get("aliases", []) if a.strip()]})
+        updates["delivery_zones"] = zones
     if updates:
         await db.restaurants.update_one({"id": rid}, {"$set": updates})
     return clean(await db.restaurants.find_one({"id": rid}, NO_ID))

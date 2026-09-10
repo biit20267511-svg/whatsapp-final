@@ -29,7 +29,7 @@ async def summary(rid: str = Depends(get_current_restaurant_id)):
             if created >= now - timedelta(days=7): totals["week_sales"] += order.get("total", 0)
             if created >= now - timedelta(days=30): totals["month_sales"] += order.get("total", 0)
         if order.get("status") in ("New", "Confirmed", "Preparing", "Ready", "Out for Delivery"): totals["pending_orders"] += 1
-        if order.get("status") == "Delivered": totals["completed_orders"] += 1
+        if order.get("status") in ("Delivered", "Picked Up"): totals["completed_orders"] += 1
         for item in order.get("items", []): counts[item["name"]] += item.get("qty", 0); revenue[item["name"]] += item.get("line_total", 0)
     top = sorted(counts.items(), key=lambda pair: pair[1], reverse=True)[:5]
     return {"today_orders": totals["today_orders"], "today_sales": round(totals["today_sales"], 0), "week_sales": round(totals["week_sales"], 0), "month_sales": round(totals["month_sales"], 0), "pending_orders": totals["pending_orders"], "completed_orders": totals["completed_orders"], "average_order_value": round(totals["total_sales"] / totals["counted"], 0) if totals["counted"] else 0, "total_orders": len(orders), "top_items": [{"name": n, "qty": q, "revenue": round(revenue[n], 0)} for n, q in top]}

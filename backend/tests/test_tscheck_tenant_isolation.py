@@ -3,7 +3,7 @@
 Uses the seeded demo owner (owner@pizzapalace.pk) read-only: only GET calls,
 no mutation of seeded rows.
 """
-from tests.helpers import OWNER_EMAIL, OWNER_PASSWORD, SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD, auth_headers, login
+from tests.helpers import OWNER_EMAIL, OWNER_PASSWORD, auth_headers, login
 
 
 def test_owner_reaches_only_own_dashboard_and_dashboard_apis_work(client):

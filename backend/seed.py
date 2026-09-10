@@ -1,6 +1,6 @@
 import os
 
-from auth import hash_password, verify_password
+from auth import hash_password
 from database import NO_ID, db, new_id, now_iso
 from services.subscription_service import ensure_subscription
 
@@ -10,6 +10,7 @@ DEMO_RESTAURANT_ID = "demo-pizza-palace"
 async def seed():
     await db.users.create_index("email", unique=True)
     await db.customers.create_index([("restaurant_id", 1), ("phone", 1)])
+    await db.login_attempts.create_index("identifier", unique=True)
     restaurant = await db.restaurants.find_one({"id": DEMO_RESTAURANT_ID}, NO_ID)
     if not restaurant:
         restaurant = {"id": DEMO_RESTAURANT_ID, "name": "Pizza Palace", "description": "Fast food & pizza — Lahore's favourite since 2015.", "address": "Main Boulevard, Gulberg III", "city": "Lahore", "opening_hours": "Mon-Sun, 12:00 PM – 2:00 AM", "delivery_areas": "Gulberg, DHA, Model Town, Johar Town", "delivery_fee": 150, "min_order": 500, "prep_time_min": 20, "prep_time_max": 30, "delivery_time_min": 15, "delivery_time_max": 20, "currency": "PKR", "ai_greeting": "Assalam-o-Alaikum! Welcome to Pizza Palace 🍕 How can I help you today?", "created_at": now_iso()}
@@ -18,14 +19,18 @@ async def seed():
     existing = await db.users.find_one({"email": email})
     if not existing:
         await db.users.insert_one({"id": new_id(), "email": email, "password_hash": hash_password(password), "name": "Pizza Palace Owner", "role": "owner", "restaurant_id": DEMO_RESTAURANT_ID, "created_at": now_iso()})
-    elif not verify_password(password, existing["password_hash"]):
-        await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_password(password), "restaurant_id": DEMO_RESTAURANT_ID}})
-    await db.users.update_one({"email": email}, {"$set": {"role": "RESTAURANT_ADMIN", "username": "pizza_palace"}})
+    await db.users.update_one({"email": email}, {"$set": {"role": "RESTAURANT_ADMIN"}, "$setOnInsert": {}})
+    if existing and not existing.get("username"):
+        await db.users.update_one({"email": email}, {"$set": {"username": "pizza_palace"}})
     super_email = os.environ.get("SUPER_ADMIN_EMAIL", "admin@restaurantai.pk").lower()
     super_password = os.environ.get("SUPER_ADMIN_PASSWORD", "ChangeMe@2026")
     super_admin = await db.users.find_one({"email": super_email})
     if not super_admin:
-        await db.users.insert_one({"id": new_id(), "email": super_email, "username": "superadmin", "password_hash": hash_password(super_password), "name": "Platform Super Admin", "role": "SUPER_ADMIN", "restaurant_id": None, "must_change_password": True, "created_at": now_iso()})
+        legacy = await db.users.find_one({"role": "SUPER_ADMIN"})
+        if legacy:
+            await db.users.update_one({"id": legacy["id"]}, {"$set": {"email": super_email}})
+        else:
+            await db.users.insert_one({"id": new_id(), "email": super_email, "username": "superadmin", "password_hash": hash_password(super_password), "name": "Platform Super Admin", "role": "SUPER_ADMIN", "restaurant_id": None, "must_change_password": True, "token_version": 0, "created_at": now_iso()})
     await ensure_subscription(DEMO_RESTAURANT_ID)
     if not await db.whatsapp_connections.find_one({"restaurant_id": DEMO_RESTAURANT_ID}):
         await db.whatsapp_connections.insert_one({"id": new_id(), "restaurant_id": DEMO_RESTAURANT_ID, "provider": "simulator", "status": "connected", "connected_number": "Simulator", "logs": [f"{now_iso()} — simulator ready"], "created_at": now_iso()})

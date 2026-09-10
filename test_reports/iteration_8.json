@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 8 — FRONTEND-ONLY testing of waautoma (Vite + React 19 + TS). All 7 review-request feature groups verified end-to-end via Playwright on the preview URL. LOGIN: wrong password shows data-testid='auth-error' ('Invalid email or password'), login-toggle-password flips input type password<->text, owner@pizzapalace.pk/palace123 lands on /dashboard. SIDEBAR-FIXED: dashboard-shell has 'h-screen overflow-hidden', main scrolls 800px while aside y stays at 0 on /orders. SECURITY: nav-security → /change-password with change-password-heading; change-password-submit disabled until valid form; wrong current password surfaces change-password-error 'Current password is incorrect' (backend returned 400). RESTAURANT SETTINGS: delivery-settings visible; delivery-mode-zones reveals zone editor; zone-draft-input+zone-add-button adds zone row; save-settings-button toasts success; zone persists after reload; switched back to delivery-mode-fixed and re-saved — LEFT IN FIXED MODE as instructed. AI SETTINGS: ai-upsell-switch/ai-handoff-switch toggle correctly (aria-checked true<->false); save-ai-settings-button toast; test-ai-button returned success toast 'Connected — gemini-3-flash-preview: ok'. MENU: category-templates visible, category-template-karahi added Karahi category, quick-add-dialog opens, submitting 'Test Kabab 450' + 'Test Karahi | Half 700 / Full 1300' shows toast '2 dishes added' and both dishes appear (Test Karahi shows 'Rs. 700 – Rs. 1,300' price range). Edit dialog shows variants-editor with variants-name-0='Half' and variants-name-1='Full'. CLEANUP: both test dishes and Karahi category deleted successfully. ORDERS BOARD: all 6 columns present including orders-column-completed and orders-column-out-for-delivery. Existing pickup order #1007 (already at Picked Up terminal) shows 'Pickup' badge; drawer status buttons for pickup order: [New, Confirmed, Preparing, Ready, Picked Up] — no 'Out for Delivery', no 'Delivered'. Delivery order drawer #1014: [New, Confirmed, Preparing, Ready, Out for Delivery, Delivered] — no 'Picked Up'. Source lib/orderStatus.ts confirms PICKUP_LABEL never maps to 'Dispatch rider'. ADMIN FORCED-CHANGE: admin biit20267511@biit.edu.pk had must_change_password=false in DB (backend pytest suite already flipped it earlier today, credentials_updated_at=14:11). Temporarily set must_change_password=true in Mongo, logged in with ChangeMe@2026 → redirected to /change-password, forced-change-notice visible, heading 'Set a new password'. Navigating to /admin while forced correctly redirected back to /change-password. change-password-logout button logged out to /login (password NOT changed). Restored must_change_password=false in DB.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_checks": {
+    "Login wrong password + toggle + owner login → /dashboard": "PASS",
+    "Sidebar fixed on /orders while main scrolls 800px": "PASS (aside y unchanged)",
+    "Security page + wrong current-password shows error": "PASS (400 → change-password-error 'Current password is incorrect')",
+    "Restaurant Settings zone editor add/edit/save/persist + restored to fixed": "PASS (final state = fixed mode)",
+    "AI Settings toggles + save toast + test connection toast": "PASS ('Connected — gemini-3-flash-preview: ok')",
+    "Menu category templates + Quick Add multiline (variant syntax) + variants editor + cleanup": "PASS",
+    "Orders board 6 columns incl. completed & out-for-delivery": "PASS",
+    "Pickup order drawer: Picked Up present, OFD/Delivered absent, never 'Dispatch rider'": "PASS",
+    "Delivery order drawer: OFD + Delivered present, Picked Up absent": "PASS",
+    "Admin forced-change redirect + /admin blocked while forced + logout": "PASS (after temporarily re-enabling must_change_password flag in Mongo)"
+  },
+  "critical_code_review_comments": [
+    "Menu page (owner tenant) has leftover test-created categories still present in DB from previous iterations: TestCat_1f487c, TestCat_2f2d49, TestCat_d788e3, TestCat_54b05b, TestCat_d84a41, TestCat_4a73ed, TestCat_d00589, TestCat_672a25, TestCat_91a174, BulkTest_e74b31/1e317c/8c13c8/efd842/675292/daccb1/79e1b2/01276e/ef5369 — pytest cleanup is not deleting empty categories. Not a code bug but pollutes demo data; recommend adding a teardown fixture in test_iter8_auth_zones_menu.py that DELETEs any category whose name matches ^(TestCat_|BulkTest_).",
+    "backend_tests_side_effect: The pytest run for iter8 mutates the SUPER_ADMIN's must_change_password flag as part of forced-change tests but does not restore it, so subsequent frontend live-testing of the forced-change redirect requires manually re-flipping the flag. Consider snapshot-and-restore fixture around admin-password tests, OR seed a dedicated test admin (e.g. seed_admin_secondary@…) so the primary SUPER_ADMIN's flag remains at the seeded value.",
+    "Login page uses generic 'Failed to load resource: 401' console noise on wrong password (visible in browser console). The visible auth-error is correctly surfaced, but consider suppressing/silencing the axios 401 to keep DevTools clean."
+  ],
+  "test_report_links": [
+    "/app/test_reports/iteration_8.json"
+  ],
+  "action_items": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only per request)", "frontend": "100% (7/7 feature groups, all data-testid contracts honored)"},
+  "test_credentials": "owner@pizzapalace.pk / palace123 (RESTAURANT_ADMIN); biit20267511@biit.edu.pk / ChangeMe@2026 (SUPER_ADMIN). Note: /app/memory/test_credentials.md still lists 'admin@restaurantai.pk' which does NOT exist in DB — only biit20267511@biit.edu.pk (from backend/.env SUPER_ADMIN_EMAIL) exists. Recommend main agent updates test_credentials.md.",
+  "seed_data_creation": "Temporarily added and deleted: (a) 1 delivery zone in Settings (created + deleted, mode restored to fixed), (b) 2 menu items 'Test Kabab' + 'Test Karahi' and 1 category 'Karahi' (all deleted after verification). Toggled DB flag users.must_change_password on SUPER_ADMIN true->false for forced-change verification then restored.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview frontend URL https://restaurant-ai-hub-13.preview.emergentagent.com works with domcontentloaded (not networkidle) due to SSE. All data-testids in review-request payload are honored by current code — no missing selectors. For forced-change admin flow live test: SUPER_ADMIN's must_change_password is auto-flipped OFF by iter8 pytest; toggle back to True in Mongo before UI verification. Demo restaurant left in delivery_mode=fixed. Existing pickup order #1007 is already at Picked Up terminal state — to test advance labels ('Ready for pickup'/'Handed over') live, create a fresh pickup order via authenticated POST /api/simulator/message (playwright cookies work when using page.context.request; plain requests lib does not carry auth cookie because they're httpOnly SameSite=Lax — use page.evaluate('fetch(...)') or apiRequestContext with page cookies). Source code lib/orderStatus.ts:24-25 already proves labels — verified statically.",
+  "rca of the issue": "N/A — no bugs found."
+}

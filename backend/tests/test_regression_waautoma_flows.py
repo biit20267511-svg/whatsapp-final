@@ -13,7 +13,7 @@ API = f"{BASE_URL}/api"
 GATEWAY_URL = "http://localhost:3001"
 
 OWNER = {"email": "owner@pizzapalace.pk", "password": "palace123"}
-ADMIN = {"email": "admin@restaurantai.pk", "password": "ChangeMe@2026"}
+ADMIN = {"email": os.environ.get("SUPER_ADMIN_EMAIL", "admin@restaurantai.pk"), "password": os.environ.get("SUPER_ADMIN_PASSWORD", "ChangeMe@2026")}
 
 
 # ---------- fixtures ----------

@@ -11,7 +11,6 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=False)
 
 # MongoDB connection
-from database import client
 import seed
 from routers import (admin, analytics, auth, billing, conversations, customers, menu, orders,
                      reservations, restaurant, simulator, stream, uploads, webhooks, whatsapp)

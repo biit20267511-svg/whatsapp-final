@@ -7,9 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { apiGet, apiPatch, fmtMoney, type Order } from "@/lib/api";
 import { OrderDrawer } from "@/components/OrderDrawer";
 import { AutoPrintTicket } from "@/components/KitchenTicket";
-import { FLOW, NEXT_LABEL, STATUS_THEME, nextStatus, timeAgo, waLink } from "@/lib/orderStatus";
+import { BOARD_COLUMNS, DONE, STATUS_THEME, columnFor, flowFor, nextLabel, nextStatus, timeAgo, waLink } from "@/lib/orderStatus";
 
-const ALL_STATUSES = [...FLOW, "Cancelled"];
 const ACTIVE = new Set(["New", "Confirmed", "Preparing", "Ready", "Out for Delivery"]);
 
 function chime() {
@@ -48,13 +47,13 @@ const MetricCard = ({ label, value, sub, icon, urgent, testId }: { label: string
 );
 
 const OrderCard = ({ order, onOpen, onAdvance, pending }: { order: Order; onOpen: () => void; onAdvance: (status: string) => void; pending: boolean }) => {
-  const next = nextStatus(order.status);
+  const next = nextStatus(order.status, order.order_type);
   const theme = STATUS_THEME[order.status];
   return (
     <button data-testid={`order-card-${order.order_number}`} onClick={onOpen} className={`block w-full rounded-xl border border-border/60 border-l-4 ${theme?.accent || ""} bg-card p-4 text-left shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md`}>
       <div className="flex items-center justify-between">
         <span className="font-heading font-bold">#{order.order_number}</span>
-        <span className="flex items-center gap-1 text-[11px] capitalize text-muted-foreground">{order.order_type === "delivery" ? <Bike size={12} /> : <Store size={12} />}{order.order_type}</span>
+        <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${order.order_type === "pickup" ? "bg-violet-500/15 text-violet-700 dark:text-violet-300" : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"}`}>{order.order_type === "delivery" ? <Bike size={12} /> : <Store size={12} />}{order.order_type}{DONE.has(order.status) ? ` · ${order.status}` : ""}</span>
       </div>
       <p className="mt-0.5 text-[11px] text-muted-foreground">{timeAgo(order.created_at)}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -73,7 +72,7 @@ const OrderCard = ({ order, onOpen, onAdvance, pending }: { order: Order; onOpen
             role="button"
             onClick={(event) => { event.stopPropagation(); if (!pending) onAdvance(next); }}
             className={`rounded-full px-2.5 py-1 text-[11px] font-bold text-white transition-transform duration-150 active:scale-95 ${theme?.btn || "bg-primary"} ${pending ? "opacity-60" : ""}`}
-          >{NEXT_LABEL[order.status]} →</span>
+          >{nextLabel(order.status, order.order_type)} →</span>
         )}
       </div>
     </button>
@@ -200,12 +199,13 @@ export default function Orders() {
         </div>
       ) : view === "board" ? (
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {FLOW.map((column) => {
-            const list = filtered.filter((order) => order.status === column);
+          {BOARD_COLUMNS.map((column) => {
+            const list = filtered.filter((order) => columnFor(order.status) === column);
+            const hint = column === "Out for Delivery" ? "delivery only" : column === "Completed" ? "delivered / picked up" : "";
             return (
               <section data-testid={`orders-column-${column.toLowerCase().replaceAll(" ", "-")}`} key={column} className="min-h-[380px] min-w-[272px] flex-1 rounded-2xl border border-border/50 bg-muted/50 p-3">
                 <div className="mb-3 flex items-center justify-between px-1">
-                  <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><span className={`h-2 w-2 rounded-full ${STATUS_THEME[column]?.dot}`} />{column}</span>
+                  <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><span className={`h-2 w-2 rounded-full ${STATUS_THEME[column]?.dot}`} />{column}{hint && <span className="font-normal normal-case tracking-normal opacity-70">· {hint}</span>}</span>
                   <span className="rounded-full bg-card px-2 py-0.5 font-mono text-xs font-bold tabular-nums shadow-sm">{list.length}</span>
                 </div>
                 <div className="space-y-3">
@@ -243,7 +243,7 @@ export default function Orders() {
                   <TableCell onClick={(event) => event.stopPropagation()}>
                     <Select value={order.status} onValueChange={(status) => setStatus(order.id, status)}>
                       <SelectTrigger data-testid={`order-status-select-${order.order_number}`} className="h-8 rounded-full text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>{ALL_STATUSES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
+                      <SelectContent>{[...flowFor(order.order_type), "Cancelled"].map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
                     </Select>
                   </TableCell>
                   <TableCell onClick={(event) => event.stopPropagation()}>

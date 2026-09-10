@@ -30,6 +30,10 @@ async function request<T>(method: string, path: string, body?: JsonBody): Promis
   // FastAPI reports request-validation failures as 422 with a {detail: [...]} body.
   if (!res.ok) {
     const errBody = await res.json().catch(() => null);
+    if (res.status === 401 && token && !path.startsWith("/auth/login")) {
+      localStorage.removeItem("token");
+      if (!window.location.pathname.startsWith("/login")) window.location.assign("/login?reason=session");
+    }
     throw new ApiError(res.status, errBody);
   }
 
@@ -47,7 +51,8 @@ export const apiPatch = <T>(path: string, body?: JsonBody) =>
 export const apiDelete = <T>(path: string) => request<T>("DELETE", path);
 
 export interface User { id: string; email: string; name: string; role?: string; restaurant_id?: string | null; username?: string; must_change_password?: boolean }
-export interface Restaurant { id: string; name: string; description?: string; address?: string; city?: string; currency?: string; delivery_fee?: number; min_order?: number; prep_time_min?: number; prep_time_max?: number; delivery_time_min?: number; delivery_time_max?: number; ai_greeting?: string; opening_hours?: string; delivery_areas?: string; contact_number?: string; whatsapp_number?: string; reservations_enabled?: boolean }
+export interface DeliveryZone { id?: string; name: string; aliases: string[]; fee: number; min_order?: number | null; eta_min?: number | null; active: boolean }
+export interface Restaurant { id: string; name: string; description?: string; address?: string; city?: string; currency?: string; delivery_fee?: number; min_order?: number; prep_time_min?: number; prep_time_max?: number; delivery_time_min?: number; delivery_time_max?: number; ai_greeting?: string; opening_hours?: string; delivery_areas?: string; contact_number?: string; whatsapp_number?: string; reservations_enabled?: boolean; delivery_enabled?: boolean; pickup_enabled?: boolean; delivery_mode?: "fixed" | "zones"; restrict_to_zones?: boolean; delivery_zones?: DeliveryZone[] }
 export interface Subscription { id: string; restaurant_id: string; plan: string; status: "TRIAL" | "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "SUSPENDED"; payment_status: "PENDING" | "PAID" | "OVERDUE" | "CANCELLED"; start_date: string; end_date: string; next_payment_date: string; monthly_price: number; setup_fee: number; last_payment_date?: string | null; days_remaining: number }
 export interface Session { user: User; restaurant: Restaurant; subscription: Subscription | null }
 export interface AdminSummary { total_restaurants: number; active_restaurants: number; trial_restaurants: number; expiring_soon: number; expired: number; mrr: number; total_orders: number; today_orders: number; total_customers: number; total_revenue: number }
@@ -57,10 +62,11 @@ export interface BillingResponse { subscription: Subscription; payments: Array<{
 export interface SheetsConfig { spreadsheet_id: string; google_client_id: string; google_client_secret_masked: string; status: string; tabs: string[]; callback_url: string }
 export interface OrderItem { item_id: string; name: string; qty: number; unit_price: number; line_total: number }
 export interface StatusHistory { status: string; at: string }
-export interface Order { id: string; order_number: number; customer_name: string; customer_phone: string; customer_id: string; order_type: string; address?: string | null; contact_number?: string | null; items: OrderItem[]; subtotal: number; delivery_fee: number; total: number; currency: string; status: string; eta_min: number; eta_max: number; status_history: StatusHistory[]; created_at: string; updated_at: string }
+export interface Order { id: string; order_number: number; customer_name: string; customer_phone: string; customer_id: string; order_type: string; address?: string | null; contact_number?: string | null; delivery_zone?: string | null; items: OrderItem[]; subtotal: number; delivery_fee: number; total: number; currency: string; status: string; eta_min: number; eta_max: number; status_history: StatusHistory[]; created_at: string; updated_at: string }
 export interface Analytics { today_orders: number; today_sales: number; week_sales: number; month_sales: number; pending_orders: number; completed_orders: number; average_order_value: number; total_orders: number; top_items: Array<{ name: string; qty: number; revenue: number }> }
 export interface MenuCategory { id: string; name: string; sort_order: number }
-export interface MenuItem { id: string; category_id: string; name: string; description: string; price: number; available: boolean; image_url?: string; addon_item_ids?: string[]; tags?: string[]; original_price?: number | null }
+export interface ItemOption { name: string; price: number }
+export interface MenuItem { id: string; category_id: string; name: string; description: string; price: number; available: boolean; image_url?: string; addon_item_ids?: string[]; tags?: string[]; original_price?: number | null; variants?: ItemOption[]; addons?: ItemOption[] }
 export interface MenuResponse { categories: MenuCategory[]; items: MenuItem[] }
 export interface WhatsAppConfig { provider: string; status: string; connected_number?: string; logs: string[]; evolution?: { evolution_api_url: string; evolution_api_key_masked: string; evolution_instance_name: string }; meta?: { meta_app_id: string; meta_app_secret_masked: string; meta_graph_api_url: string; webhook_url: string; configured: boolean; meta_phone_number_id: string; meta_waba_id: string; meta_access_token_masked: string; meta_verify_token_masked: string }; evolution_webhook_url?: string; qr_code?: string | null; detail?: string }
 export interface Message { id: string; direction: "in" | "out"; sender: string; text: string; created_at: string }
@@ -70,7 +76,8 @@ export interface Reservation { id: string; reservation_number: number; customer_
 
 export interface AdminPayment { id: string; restaurant_id: string; amount: number; status: string; paid_at: string; period_end: string }
 export interface AdminRestaurantDetail { restaurant: Restaurant & { owner_name?: string; phone?: string; created_at?: string }; owner: { name: string; email: string; username: string; must_change_password: boolean; created_at: string }; subscription: Subscription; whatsapp: { provider: string; status: string; connected_number: string }; payments: AdminPayment[]; recent_orders: Array<{ id: string; order_number?: number; customer_name: string; total: number; status: string; created_at: string }>; stats: { total_orders: number; today_orders: number; total_revenue: number; total_customers: number; menu_items: number }; notifications: Array<{ id: string; type: string; message: string; status: string; created_at: string }> }
-export interface CredentialsResult { ok: boolean; username: string; email: string; password_changed: boolean }
+export interface CredentialsResult { ok: boolean; username: string; email: string; password_changed: boolean; sessions_revoked?: boolean }
+export interface AdminProfileResult { ok: boolean; email: string; username?: string; password_changed: boolean; access_token: string }
 
 export function formatApiError(detail: unknown): string {
   if (detail == null) return "Something went wrong. Please try again.";

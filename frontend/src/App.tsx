@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { RealtimeProvider } from "@/context/RealtimeContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Login from "@/pages/Login";
+import ChangePassword from "@/pages/ChangePassword";
 import Dashboard from "@/pages/Dashboard";
 import Orders from "@/pages/Orders";
 import OrderDetail from "@/pages/OrderDetail";
@@ -30,17 +31,20 @@ function Protected({ children }: { children: ReactNode }) {
   if (loading) return <div data-testid="auth-loading" className="min-h-screen grid place-items-center text-muted-foreground">Loading workspace…</div>;
   if (!session) return <Navigate to="/login" replace />;
   if (session.user.role === "SUPER_ADMIN") return <Navigate to="/admin" replace />;
+  if (session.user.must_change_password) return <Navigate to="/change-password" replace />;
   if (["EXPIRED","SUSPENDED"].includes(session.subscription?.status || "")) return <Navigate to="/billing" replace />;
   return <RealtimeProvider><DashboardLayout>{children}</DashboardLayout></RealtimeProvider>;
 }
 
 function BillingProtected({children}:{children:ReactNode}) { const {session,loading}=useAuth(); if(loading)return <div>Loading…</div>; if(!session)return <Navigate to="/login"/>; if(session.user.role==="SUPER_ADMIN")return <Navigate to="/admin"/>; return <DashboardLayout>{children}</DashboardLayout>; }
-function AdminProtected({children}:{children:ReactNode}) { const {session,loading}=useAuth(); if(loading)return <div>Loading…</div>; if(!session)return <Navigate to="/login"/>; if(session.user.role!=="SUPER_ADMIN")return <Navigate to="/dashboard"/>; return <RealtimeProvider><AdminLayout>{children}</AdminLayout></RealtimeProvider>; }
+function AdminProtected({children}:{children:ReactNode}) { const {session,loading}=useAuth(); if(loading)return <div>Loading…</div>; if(!session)return <Navigate to="/login"/>; if(session.user.role!=="SUPER_ADMIN")return <Navigate to="/dashboard"/>; if(session.user.must_change_password)return <Navigate to="/change-password" replace/>; return <RealtimeProvider><AdminLayout>{children}</AdminLayout></RealtimeProvider>; }
+function SessionOnly({children}:{children:ReactNode}) { const {session,loading}=useAuth(); if(loading)return <div>Loading…</div>; if(!session)return <Navigate to="/login"/>; return <>{children}</>; }
 
 export default function App() {
   return (
     <AuthProvider><Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/change-password" element={<SessionOnly><ChangePassword /></SessionOnly>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
       <Route path="/orders" element={<Protected><Orders /></Protected>} />

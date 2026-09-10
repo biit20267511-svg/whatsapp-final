@@ -1,7 +1,7 @@
 import re, secrets, string
-from datetime import date, timedelta
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
-from auth import get_current_user, hash_password, verify_password
+from auth import create_access_token, get_current_user, hash_password, rotate_credentials, validate_password, validate_username, verify_password
 from database import NO_ID, clean, clean_list, db, new_id, now_iso
 from models.admin import AdminProfileUpdate, AdminSettingsUpdate, CredentialsUpdate, ExtendBody, ReminderBody, RestaurantCreate, RestaurantUpdate, StatusUpdate
 from services.subscription_service import DEFAULT_MONTHLY, DEFAULT_SETUP, audit, ensure_subscription, parse_day, today
@@ -53,7 +53,8 @@ def username_query(username: str):
 @router.post("/restaurants")
 async def create_restaurant(body: RestaurantCreate, user: dict = Depends(require_admin)):
     if await db.users.find_one({"email": body.email.lower().strip()}): raise HTTPException(status_code=400, detail="Email already registered")
-    username = (body.username or "").strip() or generated_username(body.restaurant_name); password = (body.password or "").strip() or generated_password()
+    username = validate_username(body.username) if (body.username or "").strip() else generated_username(body.restaurant_name)
+    password = validate_password(body.password) if (body.password or "").strip() else generated_password()
     if await db.users.find_one(username_query(username)):
         if body.username: raise HTTPException(status_code=400, detail="Username already taken. Choose a different one.")
         username = generated_username(body.restaurant_name)
@@ -89,18 +90,17 @@ async def update_credentials(restaurant_id: str, body: CredentialsUpdate, user: 
     if body.email and body.email.lower() != account.get("email"):
         if await db.users.find_one({"email": body.email.lower(), "id": {"$ne": account["id"]}}): raise HTTPException(status_code=400, detail="Email already registered")
         changes["email"] = body.email.lower()
-    if body.username and body.username.strip() and body.username.strip() != account.get("username"):
-        username = body.username.strip()
+    if body.username and body.username.strip() and body.username.strip().lower() != (account.get("username") or "").lower():
+        username = validate_username(body.username)
         existing = await db.users.find_one({**username_query(username), "id": {"$ne": account["id"]}})
         if existing: raise HTTPException(status_code=400, detail="Username already taken")
         changes["username"] = username
     if body.new_password and body.new_password.strip():
-        if len(body.new_password.strip()) < 6: raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-        changes["password_hash"] = hash_password(body.new_password.strip()); changes["must_change_password"] = True
+        changes["password_hash"] = hash_password(validate_password(body.new_password)); changes["must_change_password"] = True
     if not changes: raise HTTPException(status_code=400, detail="Nothing to update")
-    await db.users.update_one({"id": account["id"]}, {"$set": changes})
+    await rotate_credentials(account["id"], changes)
     await audit(user["id"], "UPDATED_CREDENTIALS", restaurant_id, {k: v for k, v in changes.items() if k != "password_hash"})
-    return {"ok": True, "username": changes.get("username", account.get("username")), "email": changes.get("email", account.get("email")), "password_changed": "password_hash" in changes}
+    return {"ok": True, "username": changes.get("username", account.get("username")), "email": changes.get("email", account.get("email")), "password_changed": "password_hash" in changes, "sessions_revoked": True}
 
 @router.put("/restaurants/{restaurant_id}")
 async def update_restaurant(restaurant_id: str, body: RestaurantUpdate, user: dict = Depends(require_admin)):
@@ -127,7 +127,9 @@ async def extend(restaurant_id: str, body: ExtendBody, user: dict = Depends(requ
 
 @router.post("/restaurants/{restaurant_id}/reset-password")
 async def reset_password(restaurant_id: str, user: dict = Depends(require_admin)):
-    password=generated_password(); await db.users.update_one({"restaurant_id":restaurant_id},{"$set":{"password_hash":hash_password(password),"must_change_password":True}}); await audit(user["id"],"RESET_PASSWORD",restaurant_id); return {"temporary_password":password}
+    account=await db.users.find_one({"restaurant_id":restaurant_id})
+    if not account: raise HTTPException(status_code=404, detail="Restaurant account not found")
+    password=generated_password(); await rotate_credentials(account["id"],{"password_hash":hash_password(password),"must_change_password":True}); await audit(user["id"],"RESET_PASSWORD",restaurant_id); return {"temporary_password":password,"username":account.get("username"),"email":account.get("email")}
 
 @router.get("/subscriptions")
 async def subscriptions(user: dict = Depends(require_admin)): return await expanded_restaurants()
@@ -151,7 +153,16 @@ async def update_profile(body: AdminProfileUpdate, user: dict = Depends(require_
     stored=await db.users.find_one({"id":user["id"]})
     if not stored or not verify_password(body.current_password,stored["password_hash"]): raise HTTPException(400,"Current password is incorrect")
     changes={}
-    if body.email: changes["email"]=body.email.lower()
-    if body.new_password: changes["password_hash"]=hash_password(body.new_password)
-    if changes: await db.users.update_one({"id":user["id"]},{"$set":changes})
-    await audit(user["id"],"UPDATED_ADMIN_PROFILE",user["id"]); return {"ok":True}
+    if body.email and body.email.lower()!=stored.get("email"):
+        if await db.users.find_one({"email":body.email.lower(),"id":{"$ne":user["id"]}}): raise HTTPException(400,"Email already registered")
+        changes["email"]=body.email.lower()
+    if body.username and body.username.strip():
+        username=validate_username(body.username)
+        if await db.users.find_one({**username_query(username),"id":{"$ne":user["id"]}}): raise HTTPException(400,"Username already taken")
+        changes["username"]=username
+    if body.new_password: changes["password_hash"]=hash_password(validate_password(body.new_password)); changes["must_change_password"]=False
+    if not changes: raise HTTPException(400,"Nothing to update")
+    version=await rotate_credentials(user["id"],changes)
+    await audit(user["id"],"UPDATED_ADMIN_PROFILE",user["id"],{k:v for k,v in changes.items() if k!="password_hash"})
+    email=changes.get("email",stored["email"])
+    return {"ok":True,"email":email,"username":changes.get("username",stored.get("username")),"password_changed":"password_hash" in changes,"access_token":create_access_token(user["id"],email,version)}

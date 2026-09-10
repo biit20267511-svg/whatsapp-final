@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Loader2, MessageCircle, Pizza, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, MessageCircle, Pizza, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,11 +15,12 @@ export default function Login() {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState(new URLSearchParams(window.location.search).get("reason") === "session" ? "Your session ended (credentials were changed or expired). Please sign in again." : "");
   const [loading, setLoading] = useState(false);
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setLoading(true); setError("");
-    try { const session = await login(identifier.trim(), password); navigate(session.user.role === "SUPER_ADMIN" ? "/admin" : "/dashboard"); }
+    try { const session = await login(identifier.trim(), password); navigate(session.user.must_change_password ? "/change-password" : session.user.role === "SUPER_ADMIN" ? "/admin" : "/dashboard"); }
     catch (err) { setError(err instanceof ApiError ? formatApiError(err.body) : "Unable to sign in"); }
     finally { setLoading(false); }
   };
@@ -50,8 +51,8 @@ export default function Login() {
           <p className="mt-2 text-muted-foreground">Restaurant ya Super Admin credentials se login karein.</p>
         </div>
         <div><Label htmlFor="identifier">Email or username</Label><Input id="identifier" data-testid="login-email-input" value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="owner@restaurant.pk" required className="h-11" /></div>
-        <div><Label htmlFor="password">Password</Label><Input id="password" data-testid="login-password-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="h-11" /></div>
-        {error && <p data-testid="auth-error" className="text-sm text-rose-600">{error}</p>}
+        <div><Label htmlFor="password">Password</Label><div className="relative"><Input id="password" data-testid="login-password-input" type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="h-11 pr-11" autoComplete="current-password" /><button type="button" data-testid="login-toggle-password" onClick={() => setShow(!show)} className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" aria-label="Toggle password visibility">{show ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></div>
+        {error && <p data-testid="auth-error" className="rounded-xl bg-rose-500/10 p-3 text-sm text-rose-600">{error}</p>}
         <Button type="submit" data-testid="login-submit-button" disabled={loading} className="h-11 w-full gap-2 rounded-full bg-primary shadow-lg shadow-primary/25 transition-transform duration-200 hover:-translate-y-0.5">{loading ? <Loader2 className="animate-spin" /> : <>Sign in <ArrowRight size={16} /></>}</Button>
       </form>
     </section>

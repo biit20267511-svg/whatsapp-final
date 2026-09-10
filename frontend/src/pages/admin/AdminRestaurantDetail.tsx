@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError, apiGet, apiPost, apiPut, apiPatch, fmtMoney, formatApiError, type AdminRestaurantDetail, type CredentialsResult } from "@/lib/api";
+import { toast } from "sonner";
+import { PasswordStrength } from "@/pages/ChangePassword";
 
 const statusColor: Record<string, string> = { ACTIVE: "bg-emerald-100 text-emerald-800", TRIAL: "bg-sky-100 text-sky-800", EXPIRING_SOON: "bg-amber-100 text-amber-800", EXPIRED: "bg-rose-100 text-rose-800", SUSPENDED: "bg-stone-200 text-stone-700" };
 const genPassword = () => { const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#%"; return Array.from(crypto.getRandomValues(new Uint32Array(14))).map(n => chars[n % chars.length]).join(""); };
@@ -19,7 +21,8 @@ export default function AdminRestaurantDetailPage() {
 
   const [info, setInfo] = useState({ name: "", owner_name: "", phone: "", city: "", address: "", whatsapp_number: "", delivery_fee: 0, monthly_price: 0 });
   const [creds, setCreds] = useState({ email: "", username: "", new_password: "" });
-  const [infoMsg, setInfoMsg] = useState(""); const [credMsg, setCredMsg] = useState(""); const [credErr, setCredErr] = useState(""); const [tempPassword, setTempPassword] = useState(""); const [copied, setCopied] = useState(false); const [reminderMsg, setReminderMsg] = useState("");
+  const [infoMsg, setInfoMsg] = useState(""); const [credMsg, setCredMsg] = useState(""); const [credErr, setCredErr] = useState(""); const [issued, setIssued] = useState<{ username: string; email: string; password: string } | null>(null); const [copied, setCopied] = useState(false); const [reminderMsg, setReminderMsg] = useState("");
+  const copyIssued = () => { if (!issued) return; void navigator.clipboard.writeText(`Login: ${window.location.origin}/login\nUsername: ${issued.username}\nEmail: ${issued.email}${issued.password ? `\nPassword: ${issued.password}` : ""}`); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   useEffect(() => {
     if (!d) return;
@@ -29,13 +32,13 @@ export default function AdminRestaurantDetailPage() {
 
   const refresh = () => { void client.invalidateQueries({ queryKey: ["admin-restaurant-detail", id] }); void client.invalidateQueries({ queryKey: ["admin-restaurants"] }); void client.invalidateQueries({ queryKey: ["admin-subscriptions"] }); void client.invalidateQueries({ queryKey: ["admin-summary"] }); };
 
-  const saveInfo = useMutation({ mutationFn: () => apiPut(`/admin/restaurants/${id}`, info), onSuccess: () => { setInfoMsg("Saved!"); setTimeout(() => setInfoMsg(""), 2500); refresh(); } });
+  const saveInfo = useMutation({ mutationFn: () => apiPut(`/admin/restaurants/${id}`, info), onSuccess: () => { setInfoMsg("Saved!"); setTimeout(() => setInfoMsg(""), 2500); refresh(); toast.success("Restaurant details saved"); }, onError: (err) => toast.error(err instanceof ApiError ? formatApiError(err.body) : "Save failed") });
   const saveCreds = useMutation({
     mutationFn: () => apiPut<CredentialsResult>(`/admin/restaurants/${id}/credentials`, { email: creds.email || null, username: creds.username || null, new_password: creds.new_password || null }),
-    onSuccess: (res) => { setCredErr(""); setCredMsg(res.password_changed ? `Credentials updated — username: ${res.username}, new password: ${creds.new_password}` : `Credentials updated — username: ${res.username}`); setCreds(prev => ({ ...prev, new_password: "" })); refresh(); },
+    onSuccess: (res) => { setCredErr(""); setIssued({ username: res.username, email: res.email, password: res.password_changed ? creds.new_password : "" }); setCredMsg(`Saved in database${res.password_changed ? " — owner will be asked to set a new password on next login" : ""}. Old sessions logged out.`); setCreds(prev => ({ ...prev, username: res.username, email: res.email, new_password: "" })); refresh(); toast.success("Credentials updated"); },
     onError: (err) => { setCredMsg(""); setCredErr(err instanceof ApiError ? formatApiError(err.body) : "Update failed"); },
   });
-  const resetPassword = useMutation({ mutationFn: () => apiPost<{ temporary_password: string }>(`/admin/restaurants/${id}/reset-password`), onSuccess: (res) => { setTempPassword(res.temporary_password); refresh(); } });
+  const resetPassword = useMutation({ mutationFn: () => apiPost<{ temporary_password: string; username: string; email: string }>(`/admin/restaurants/${id}/reset-password`), onSuccess: (res) => { setIssued({ username: res.username, email: res.email, password: res.temporary_password }); setCredMsg("Temporary password issued — owner must change it on first login."); refresh(); } });
   const payment = useMutation({ mutationFn: () => apiPost(`/admin/restaurants/${id}/payment`), onSuccess: refresh });
   const extend = useMutation({ mutationFn: () => apiPost(`/admin/restaurants/${id}/extend`, { days: 30 }), onSuccess: refresh });
   const toggle = useMutation({ mutationFn: (status: string) => apiPatch(`/admin/restaurants/${id}/status`, { status }), onSuccess: refresh });
@@ -82,15 +85,19 @@ export default function AdminRestaurantDetailPage() {
             <div><Label>Email</Label><Input data-testid="edit-cred-email" value={creds.email} onChange={e => setCreds({ ...creds, email: e.target.value })} /></div>
             <div><Label>Username</Label><Input data-testid="edit-cred-username" value={creds.username} onChange={e => setCreds({ ...creds, username: e.target.value })} /></div>
           </div>
-          <div><Label>New password (leave blank to keep current)</Label><div className="flex gap-2"><Input data-testid="edit-cred-password" value={creds.new_password} placeholder="Set a new password" onChange={e => setCreds({ ...creds, new_password: e.target.value })} /><Button data-testid="generate-password-button" type="button" variant="outline" onClick={() => setCreds({ ...creds, new_password: genPassword() })}>Generate</Button></div></div>
+          <div><Label>New password (leave blank to keep current)</Label><div className="flex gap-2"><Input data-testid="edit-cred-password" value={creds.new_password} placeholder="Min 8 chars, letters + numbers" onChange={e => setCreds({ ...creds, new_password: e.target.value })} /><Button data-testid="generate-password-button" type="button" variant="outline" onClick={() => setCreds({ ...creds, new_password: genPassword() })}>Generate</Button></div>{creds.new_password && <div className="mt-2"><PasswordStrength value={creds.new_password} /></div>}</div>
           <div className="flex flex-wrap items-center gap-3">
             <Button data-testid="save-credentials-button" disabled={saveCreds.isPending} onClick={() => saveCreds.mutate()} className="gap-2 bg-[#D94833]"><Save size={15} /> Update credentials</Button>
             <Button data-testid="reset-password-button" variant="outline" disabled={resetPassword.isPending} onClick={() => resetPassword.mutate()} className="gap-2"><RefreshCcw size={15} /> Reset password</Button>
+            {d.owner.must_change_password && <span data-testid="must-change-badge" className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-200">Owner must set new password on login</span>}
           </div>
-          {credMsg && <div data-testid="credentials-updated-msg" className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"><span>{credMsg}</span></div>}
+          {credMsg && <div data-testid="credentials-updated-msg" className="rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{credMsg}</div>}
           {credErr && <p data-testid="credentials-error-msg" className="text-sm text-rose-700">{credErr}</p>}
-          {tempPassword && <div data-testid="temp-password-box" className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 p-3 text-sm dark:bg-amber-950"><span>Temporary password: <code className="font-bold">{tempPassword}</code></span><Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(tempPassword); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="gap-1">{copied ? <Check size={13} /> : <Copy size={13} />}{copied ? "Copied" : "Copy"}</Button></div>}
-          <p className="text-xs text-muted-foreground">Login identifiers case-insensitive hain — owner username ya email dono se sign in kar sakta hai.</p>
+          {issued && <div data-testid="issued-credentials-box" className="space-y-1 rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-sm dark:bg-amber-950">
+            <div className="flex items-center justify-between"><p className="font-bold">Share with owner</p><Button size="sm" variant="outline" data-testid="copy-credentials-button" onClick={copyIssued} className="gap-1">{copied ? <Check size={13} /> : <Copy size={13} />}{copied ? "Copied" : "Copy all"}</Button></div>
+            <p>Username: <code data-testid="issued-username" className="font-bold">{issued.username}</code></p><p>Email: <code className="font-bold">{issued.email}</code></p>{issued.password && <p>Password: <code data-testid="issued-password" className="font-bold">{issued.password}</code></p>}
+          </div>}
+          <p className="text-xs text-muted-foreground">Changes DB mein turant save hote hain aur owner ke purane sessions logout ho jate hain. Login identifiers case-insensitive hain.</p>
         </CardContent>
       </Card>
     </div>

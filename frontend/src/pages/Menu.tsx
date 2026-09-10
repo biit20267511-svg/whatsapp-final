@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChefHat, CirclePlus, Eye, EyeOff, Flame, ImageIcon, LayoutGrid, MoreVertical, Pencil, Percent, Rows3, Search, Sparkles, Trash2, Upload, UtensilsCrossed } from "lucide-react";
+import { ChefHat, CirclePlus, Eye, EyeOff, Flame, ImageIcon, LayoutGrid, MoreVertical, Pencil, Percent, Rows3, Search, Sparkles, Trash2, Upload, UtensilsCrossed, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,9 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { apiDelete, apiGet, apiPost, apiPut, type MenuCategory, type MenuItem, type MenuResponse } from "@/lib/api";
+import { apiDelete, apiGet, apiPost, apiPut, type ItemOption, type MenuCategory, type MenuItem, type MenuResponse } from "@/lib/api";
+import { OptionListEditor } from "@/components/OptionListEditor";
+import { MenuQuickAdd } from "@/components/MenuQuickAdd";
 
 const TAG_PRESETS = ["Spicy", "Chef's Special", "Vegetarian", "BBQ", "Deal", "Dessert", "Drinks", "Family Pack"];
+const CATEGORY_TEMPLATES = ["Deals", "Burgers", "Karahi", "BBQ", "Handi", "Biryani & Rice", "Rolls & Paratha", "Chinese", "Pizza", "Fast Food", "Desi Nashta", "Desserts", "Drinks"];
 const PRESET_IMAGES = [
   { label: "Biryani", url: "https://images.pexels.com/photos/9738983/pexels-photo-9738983.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" },
   { label: "BBQ Boti", url: "https://images.pexels.com/photos/9867831/pexels-photo-9867831.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" },
@@ -24,8 +27,9 @@ const PRESET_IMAGES = [
 ];
 const rs = (value: number | undefined | null) => `Rs. ${Number(value || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}`;
 
-interface DishForm { id?: string; category_id: string; name: string; description: string; price: string; original_price: string; image_url: string; tags: string[]; available: boolean }
-const emptyDish = (categoryId: string): DishForm => ({ category_id: categoryId, name: "", description: "", price: "", original_price: "", image_url: "", tags: [], available: true });
+interface DishForm { id?: string; category_id: string; name: string; description: string; price: string; original_price: string; image_url: string; tags: string[]; available: boolean; variants: ItemOption[]; addons: ItemOption[] }
+const emptyDish = (categoryId: string): DishForm => ({ category_id: categoryId, name: "", description: "", price: "", original_price: "", image_url: "", tags: [], available: true, variants: [], addons: [] });
+const priceLabel = (item: MenuItem) => item.variants?.length ? `${rs(Math.min(...item.variants.map((v) => v.price)))} – ${rs(Math.max(...item.variants.map((v) => v.price)))}` : rs(item.price);
 
 function DishImage({ item, className }: { item: MenuItem; className: string }) {
   if (item.image_url) return <img src={item.image_url} alt={item.name} loading="lazy" className={`${className} object-cover`} />;
@@ -46,6 +50,7 @@ export default function Menu() {
   const [renameValue, setRenameValue] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkPercent, setBulkPercent] = useState("10");
+  const [quickOpen, setQuickOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const uploadImage = async (file: File) => {
@@ -86,13 +91,16 @@ export default function Menu() {
   }), [items]);
 
   const addCategory = useMutation({ mutationFn: () => apiPost<MenuCategory>("/menu/categories", { name: category.trim(), sort_order: categories.length + 1 }), onSuccess: (created) => { setCategory(""); setActiveId(created.id); refresh(); toast.success(`Category "${created.name}" added`); } });
+  const addTemplates = useMutation({ mutationFn: (names: string[]) => apiPost<{ created: MenuCategory[] }>("/menu/categories/bulk", { names }), onSuccess: (res) => { refresh(); toast.success(`${res.created.length} categories added`); } });
   const renameCategory = useMutation({ mutationFn: () => apiPut(`/menu/categories/${selectedId}`, { name: renameValue.trim() }), onSuccess: () => { setRenameOpen(false); refresh(); toast.success("Category renamed"); } });
   const deleteCategory = useMutation({ mutationFn: (id: string) => apiDelete(`/menu/categories/${id}`), onSuccess: () => { setActiveId("all"); refresh(); toast.success("Category deleted"); } });
   const bulkAvailability = useMutation({ mutationFn: (available: boolean) => apiPost<{ updated: number }>("/menu/bulk-availability", { category_id: selectedId, available }), onSuccess: (res, available) => { refresh(); toast.success(`${res.updated} dishes ${available ? "now live on AI" : "hidden from AI"}`); } });
   const bulkPrice = useMutation({ mutationFn: () => apiPost<{ updated: number }>("/menu/bulk-price", { category_id: selectedId, percent: Number(bulkPercent) }), onSuccess: (res) => { setBulkOpen(false); refresh(); toast.success(`Prices adjusted for ${res.updated} dishes`); } });
   const saveDish = useMutation({
     mutationFn: () => {
-      const payload = { category_id: dish.category_id, name: dish.name.trim(), description: dish.description.trim(), price: Number(dish.price), original_price: dish.original_price ? Number(dish.original_price) : null, image_url: dish.image_url.trim(), tags: dish.tags, available: dish.available, addon_item_ids: [] };
+      const cleanOptions = (list: ItemOption[]) => list.filter((o) => o.name.trim()).map((o) => ({ name: o.name.trim(), price: Number(o.price) || 0 }));
+      const variants = cleanOptions(dish.variants);
+      const payload = { category_id: dish.category_id, name: dish.name.trim(), description: dish.description.trim(), price: variants.length ? Math.min(...variants.map((v) => v.price)) : Number(dish.price), original_price: dish.original_price ? Number(dish.original_price) : null, image_url: dish.image_url.trim(), tags: dish.tags, available: dish.available, addon_item_ids: [], variants, addons: cleanOptions(dish.addons) };
       return dish.id ? apiPut<MenuItem>(`/menu/items/${dish.id}`, payload) : apiPost<MenuItem>("/menu/items", payload);
     },
     onSuccess: () => { setDishOpen(false); refresh(); toast.success(dish.id ? "Dish updated" : "Dish added to menu"); },
@@ -102,7 +110,7 @@ export default function Menu() {
   const deleteItem = useMutation({ mutationFn: (id: string) => apiDelete(`/menu/items/${id}`), onSuccess: () => { refresh(); toast.success("Dish removed"); } });
 
   const openAdd = () => { setDish(emptyDish(selectedId !== "all" ? selectedId : categories[0]?.id || "")); setDishOpen(true); };
-  const openEdit = (entry: MenuItem) => { setDish({ id: entry.id, category_id: entry.category_id, name: entry.name, description: entry.description, price: String(entry.price), original_price: entry.original_price ? String(entry.original_price) : "", image_url: entry.image_url || "", tags: entry.tags || [], available: entry.available }); setDishOpen(true); };
+  const openEdit = (entry: MenuItem) => { setDish({ id: entry.id, category_id: entry.category_id, name: entry.name, description: entry.description, price: String(entry.price), original_price: entry.original_price ? String(entry.original_price) : "", image_url: entry.image_url || "", tags: entry.tags || [], available: entry.available, variants: entry.variants || [], addons: entry.addons || [] }); setDishOpen(true); };
   const toggleTag = (tag: string) => setDish((d) => ({ ...d, tags: d.tags.includes(tag) ? d.tags.filter((t) => t !== tag) : [...d.tags, tag] }));
   const countFor = (id: string) => items.filter((entry) => entry.category_id === id).length;
 
@@ -113,7 +121,16 @@ export default function Menu() {
         <h1 data-testid="menu-heading" className="mt-2 font-heading text-4xl font-bold tracking-tight">Menu</h1>
         <p data-testid="menu-subtitle" className="mt-2 max-w-xl text-muted-foreground">Har dish yahan se control hoti hai — jo live hai, wohi AI WhatsApp par sell karta hai.</p>
       </div>
-      <Button data-testid="add-item-button" onClick={openAdd} disabled={!categories.length} className="gap-2 rounded-full bg-primary px-5 shadow-lg shadow-primary/25 transition-transform duration-200 hover:-translate-y-0.5"><CirclePlus size={17} /> Add Dish</Button>
+      <div className="flex gap-2">
+        <Button data-testid="quick-add-button" variant="outline" onClick={() => setQuickOpen(true)} disabled={!categories.length} className="gap-2 rounded-full px-5"><Zap size={16} /> Quick Add</Button>
+        <Button data-testid="add-item-button" onClick={openAdd} disabled={!categories.length} className="gap-2 rounded-full bg-primary px-5 shadow-lg shadow-primary/25 transition-transform duration-200 hover:-translate-y-0.5"><CirclePlus size={17} /> Add Dish</Button>
+      </div>
+    </div>
+
+    <div className="flex flex-wrap items-center gap-1.5" data-testid="category-templates">
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick categories:</span>
+      {CATEGORY_TEMPLATES.filter((t) => !categories.some((c) => c.name.toLowerCase() === t.toLowerCase())).map((t) => <button key={t} data-testid={`category-template-${t.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`} onClick={() => addTemplates.mutate([t])} className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary">+ {t}</button>)}
+      {!categories.length && <Button size="sm" data-testid="add-all-templates" variant="secondary" onClick={() => addTemplates.mutate(CATEGORY_TEMPLATES.slice(0, 8))} className="rounded-full text-xs">Add starter set</Button>}
     </div>
 
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -185,8 +202,9 @@ export default function Menu() {
           </div>
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
-              <span className="font-money text-lg font-bold text-primary">{rs(entry.price)}</span>
+              <span className="font-money text-lg font-bold text-primary">{priceLabel(entry)}</span>
               {entry.original_price && entry.original_price > entry.price ? <span className="font-money text-xs text-muted-foreground line-through">{rs(entry.original_price)}</span> : null}
+              {entry.addons?.length ? <span className="text-[10px] font-semibold text-muted-foreground">+{entry.addons.length} add-ons</span> : null}
             </div>
             <div className="flex items-center gap-2">
               <span className={`text-[10px] font-bold uppercase tracking-wide ${entry.available ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>{entry.available ? "Live" : "Hidden"}</span>
@@ -204,7 +222,7 @@ export default function Menu() {
         <td className="px-4 py-3"><div className="flex items-center gap-3"><DishImage item={entry} className="h-10 w-10 shrink-0 rounded-lg" /><div className="min-w-0"><p className="truncate font-semibold">{entry.name}</p><p className="max-w-[260px] truncate text-xs text-muted-foreground">{entry.description}</p></div></div></td>
         <td className="px-4">{categories.find((c) => c.id === entry.category_id)?.name || "—"}</td>
         <td className="px-4"><div className="flex flex-wrap gap-1">{(entry.tags || []).map((tag) => <Badge key={tag} className="border border-border bg-muted text-[10px] text-muted-foreground">{tag}</Badge>)}</div></td>
-        <td className="px-4"><span className="font-money font-bold text-primary">{rs(entry.price)}</span></td>
+        <td className="px-4"><span className="font-money font-bold text-primary">{priceLabel(entry)}</span></td>
         <td className="px-4"><Switch data-testid={`dish-availability-switch-${entry.id}`} checked={entry.available} onCheckedChange={(checked) => toggleItem.mutate({ id: entry.id, available: checked })} /></td>
         <td className="px-4"><div className="flex justify-end gap-1"><button data-testid={`edit-item-${entry.id}`} onClick={() => openEdit(entry)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil size={15} /></button><button data-testid={`delete-item-${entry.id}`} onClick={() => deleteItem.mutate(entry.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600"><Trash2 size={15} /></button></div></td>
       </tr>)}</tbody>
@@ -217,8 +235,12 @@ export default function Menu() {
           <div><Label>Dish name *</Label><Input data-testid="item-name-input" value={dish.name} onChange={(e) => setDish({ ...dish, name: e.target.value })} placeholder="e.g. Chicken Biryani (Full)" /></div>
           <div><Label>Category</Label><Select value={dish.category_id} onValueChange={(v) => setDish({ ...dish, category_id: v })}><SelectTrigger data-testid="item-category-select"><SelectValue placeholder="Choose category" /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="sm:col-span-2"><Label>Description (AI isse customers ko batata hai)</Label><Textarea data-testid="item-description-input" value={dish.description} onChange={(e) => setDish({ ...dish, description: e.target.value })} placeholder="Basmati rice, tender chicken, signature masala — serves 2" className="min-h-16" /></div>
-          <div><Label>Price (PKR) *</Label><Input data-testid="item-price-input" type="number" min="0" value={dish.price} onChange={(e) => setDish({ ...dish, price: e.target.value })} placeholder="650" /></div>
+          <div><Label>{dish.variants.some((v) => v.name.trim()) ? "Base price (variants se auto)" : "Price (PKR) *"}</Label><Input data-testid="item-price-input" type="number" min="0" value={dish.price} onChange={(e) => setDish({ ...dish, price: e.target.value })} placeholder="650" disabled={dish.variants.some((v) => v.name.trim())} /></div>
           <div><Label>Original price (discount dikhane ke liye)</Label><Input data-testid="item-original-price-input" type="number" min="0" value={dish.original_price} onChange={(e) => setDish({ ...dish, original_price: e.target.value })} placeholder="800" /></div>
+          <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+            <OptionListEditor kind="variants" value={dish.variants} onChange={(variants) => setDish({ ...dish, variants })} />
+            <OptionListEditor kind="addons" value={dish.addons} onChange={(addons) => setDish({ ...dish, addons })} />
+          </div>
           <div className="sm:col-span-2">
             <Label className="flex items-center gap-1.5"><ImageIcon size={14} /> Dish photo</Label>
             <div className="mt-1 flex items-center gap-3">
@@ -242,9 +264,11 @@ export default function Menu() {
             <Switch data-testid="dish-form-availability-switch" checked={dish.available} onCheckedChange={(checked) => setDish({ ...dish, available: checked })} />
           </div>
         </div>
-        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setDishOpen(false)}>Cancel</Button><Button data-testid="save-dish-button" disabled={!dish.name.trim() || !dish.price || !dish.category_id || saveDish.isPending} onClick={() => saveDish.mutate()} className="bg-primary">{dish.id ? "Save changes" : "Add dish"}</Button></div>
+        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setDishOpen(false)}>Cancel</Button><Button data-testid="save-dish-button" disabled={!dish.name.trim() || !(dish.price || dish.variants.some((v) => v.name.trim())) || !dish.category_id || saveDish.isPending} onClick={() => saveDish.mutate()} className="bg-primary">{dish.id ? "Save changes" : "Add dish"}</Button></div>
       </DialogContent>
     </Dialog>
+
+    <MenuQuickAdd open={quickOpen} onOpenChange={setQuickOpen} categories={categories} defaultCategoryId={selectedId !== "all" ? selectedId : categories[0]?.id || ""} />
 
     <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
       <DialogContent data-testid="rename-category-dialog" className="sm:max-w-sm">

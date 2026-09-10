@@ -5,7 +5,7 @@ from auth import get_current_restaurant_id
 from database import NO_ID, clean, clean_list, db, now_iso
 from events import bus
 from services import notification_service
-from services.order_service import ORDER_STATUSES
+from services.order_service import ORDER_STATUSES, allowed_statuses
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -37,6 +37,8 @@ async def update_status(order_id: str, body: StatusBody, rid: str = Depends(get_
     order = clean(await db.orders.find_one({"id": order_id, "restaurant_id": rid}, NO_ID))
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    if body.status not in allowed_statuses(order.get("order_type")):
+        raise HTTPException(status_code=400, detail=f"'{body.status}' is not valid for a {order.get('order_type')} order")
     history = order.get("status_history", []) + [{"status": body.status, "at": now_iso()}]
     await db.orders.update_one({"id": order_id, "restaurant_id": rid}, {"$set": {"status": body.status, "updated_at": now_iso(), "status_history": history}})
     order.update({"status": body.status, "status_history": history})

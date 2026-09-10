@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { fmtMoney, type Order } from "@/lib/api";
 import { StatusBadge } from "@/components/StatusBadge";
 import { KitchenTicket } from "@/components/KitchenTicket";
-import { FLOW, NEXT_LABEL, STATUS_THEME, nextStatus, timeAgo, waLink } from "@/lib/orderStatus";
+import { DONE, STATUS_THEME, flowFor, nextLabel, nextStatus, timeAgo, waLink } from "@/lib/orderStatus";
 
 interface Props {
   order: Order | null;
@@ -28,7 +28,8 @@ const fmtStamp = (iso: string) => {
 export const OrderDrawer = ({ order, open, onOpenChange, onSetStatus, pending }: Props) => {
   const [ticketOpen, setTicketOpen] = useState(false);
   if (!order) return null;
-  const next = nextStatus(order.status);
+  const next = nextStatus(order.status, order.order_type);
+  const FLOW = flowFor(order.order_type);
   const history = [...(order.status_history || [])].reverse();
   const notifyText = `Assalam o Alaikum ${order.customer_name}! Aapke order #${order.order_number} ka status ab *${order.status}* hai. Total: ${fmtMoney(order.total, order.currency)}. Shukriya!`;
   return (
@@ -95,10 +96,10 @@ export const OrderDrawer = ({ order, open, onOpenChange, onSetStatus, pending }:
             <div className="mt-3 flex gap-2">
               {next && (
                 <Button data-testid="drawer-advance-status" disabled={pending} onClick={() => onSetStatus(order.id, next)} className={`flex-1 rounded-full font-bold text-white ${STATUS_THEME[order.status]?.btn || "bg-primary"}`}>
-                  {NEXT_LABEL[order.status]} →
+                  {nextLabel(order.status, order.order_type)} →
                 </Button>
               )}
-              {order.status !== "Delivered" && order.status !== "Cancelled" && (
+              {!DONE.has(order.status) && order.status !== "Cancelled" && (
                 <Button data-testid="drawer-cancel-order" variant="outline" disabled={pending} onClick={() => onSetStatus(order.id, "Cancelled")} className="rounded-full text-rose-600 hover:text-rose-700">Cancel</Button>
               )}
             </div>

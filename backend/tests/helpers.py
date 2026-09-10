@@ -1,8 +1,9 @@
 """Shared login helpers for backend tests."""
+import os
 import httpx
 
-SUPER_ADMIN_EMAIL = "admin@restaurantai.pk"
-SUPER_ADMIN_PASSWORD = "ChangeMe@2026"
+SUPER_ADMIN_EMAIL = os.environ.get("SUPER_ADMIN_EMAIL", "admin@restaurantai.pk")
+SUPER_ADMIN_PASSWORD = os.environ.get("SUPER_ADMIN_PASSWORD", "ChangeMe@2026")
 OWNER_EMAIL = "owner@pizzapalace.pk"
 OWNER_PASSWORD = "palace123"
 

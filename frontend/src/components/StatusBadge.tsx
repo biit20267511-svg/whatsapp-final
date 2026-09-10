@@ -7,6 +7,7 @@ const statusStyles: Record<string, string> = {
   Ready: "bg-purple-500/15 text-purple-700 border border-purple-500/30 dark:text-purple-300",
   "Out for Delivery": "bg-cyan-500/15 text-cyan-700 border border-cyan-500/30 dark:text-cyan-300",
   Delivered: "bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-300",
+  "Picked Up": "bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-300",
   Cancelled: "bg-rose-500/15 text-rose-700 border border-rose-500/30 dark:text-rose-300",
 };
 export function StatusBadge({ status }: { status: string }) { return <Badge data-testid={`status-badge-${status.toLowerCase().replaceAll(" ", "-")}`} className={`${statusStyles[status] || "bg-muted text-muted-foreground border border-border"}`}>{status}</Badge>; }

@@ -51,6 +51,7 @@ class AdminSettingsUpdate(BaseModel):
 
 class AdminProfileUpdate(BaseModel):
     email: EmailStr | None = None
+    username: str | None = None
     current_password: str
     new_password: str | None = None
 

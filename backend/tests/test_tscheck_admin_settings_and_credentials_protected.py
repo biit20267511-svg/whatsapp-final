@@ -60,8 +60,10 @@ def test_profile_update_requires_current_password_and_audits(client):
         json={"current_password": temp_password, "new_password": SUPER_ADMIN_PASSWORD},
     )
     assert restore.status_code == 200, restore.text
+    # credential rotation revokes older sessions; the response carries a fresh token
+    final_token = restore.json()["access_token"]
 
-    audits = client.get("/admin/audit-logs", headers=auth_headers(new_token))
+    audits = client.get("/admin/audit-logs", headers=auth_headers(final_token))
     assert audits.status_code == 200, audits.text
     actions = [a["action"] for a in audits.json()]
     assert "UPDATED_ADMIN_PROFILE" in actions

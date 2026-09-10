@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { apiGet, apiPatch, fmtMoney, type Order } from "@/lib/api";
 import { StatusBadge } from "@/components/StatusBadge";
 import { KitchenTicket } from "@/components/KitchenTicket";
-import { FLOW, NEXT_LABEL, STATUS_THEME, nextStatus, timeAgo, waLink } from "@/lib/orderStatus";
+import { DONE, STATUS_THEME, flowFor, nextLabel, nextStatus, timeAgo, waLink } from "@/lib/orderStatus";
 
 const fmtStamp = (iso: string) => {
   try {
@@ -29,7 +29,8 @@ export default function OrderDetail() {
   });
   const order = query.data;
   if (query.isLoading || !order) return <p data-testid="order-detail-loading" className="text-muted-foreground">Loading order…</p>;
-  const next = nextStatus(order.status);
+  const next = nextStatus(order.status, order.order_type);
+  const FLOW = flowFor(order.order_type);
   const history = [...(order.status_history || [])].reverse();
   const notifyText = `Assalam o Alaikum ${order.customer_name}! Aapke order #${order.order_number} ka status ab *${order.status}* hai. Total: ${fmtMoney(order.total, order.currency)}. Shukriya!`;
 
@@ -49,10 +50,10 @@ export default function OrderDetail() {
         <div className="flex flex-wrap gap-2">
           {next && (
             <Button data-testid="advance-order-status-button" disabled={mutation.isPending} onClick={() => mutation.mutate(next)} className={`gap-2 rounded-full font-bold text-white ${STATUS_THEME[order.status]?.btn || "bg-primary"}`}>
-              <Check size={16} /> {NEXT_LABEL[order.status]}
+              <Check size={16} /> {nextLabel(order.status, order.order_type)}
             </Button>
           )}
-          {order.status !== "Delivered" && order.status !== "Cancelled" && (
+          {!DONE.has(order.status) && order.status !== "Cancelled" && (
             <Button data-testid="cancel-order-button" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate("Cancelled")} className="rounded-full text-rose-600 hover:text-rose-700">Cancel</Button>
           )}
           <Button data-testid="order-print-ticket-button" variant="outline" onClick={() => setTicketOpen(true)} className="gap-2 rounded-full"><Printer size={15} /> Kitchen ticket</Button>
